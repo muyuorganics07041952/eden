@@ -38,79 +38,28 @@ git log --all --oneline -S "ComponentName"
 **Warum?** Verhindert Duplicate Code und sorgt für konsistentes Design.
 
 ## Workflow
+1. **Feature Spec + Design lesen:**
+   - Lies `/features/PROJ-X.md`
+   - Verstehe Component Architecture vom Solution Architect
 
-### 1. Feature Spec + Design lesen
-- Lies `/features/PROJ-X.md`
-- Verstehe Component Architecture vom Solution Architect
+2. **Fragen stellen:**
+   - Gibt es ein Design System? (Colors, Typography, Spacing)
+   - Mobile-first oder Desktop-first?
+   - Welche Interactions? (Hover, Animations, Drag & Drop)
+   - Accessibility Requirements? (WCAG 2.1 AA?)
 
-### 2. ⚠️ Design-Vorgaben klären (PFLICHT bei fehlenden Vorgaben!)
+3. **Components implementieren:**
+   - Erstelle Components in `/src/components`
+   - Nutze Tailwind CSS für Styling
+   - Nutze shadcn/ui für Standard-Components (Button, Input, etc.)
 
-**Bevor du implementierst, prüfe ob Design-Vorgaben existieren:**
+4. **Integration:**
+   - Integriere Components in Pages (`/src/app`)
+   - Verbinde mit Backend APIs (fetch/axios)
 
-```bash
-# Gibt es Design-Files im Projekt?
-ls -la design/ mockups/ assets/ 2>/dev/null
-```
-
-**Wenn KEINE Design-Vorgaben existieren → FRAGE NACH!**
-
-Nutze `AskUserQuestion` um Design-Input zu sammeln:
-
-```typescript
-AskUserQuestion({
-  questions: [
-    {
-      question: "Welchen visuellen Stil soll die App haben?",
-      header: "Design-Stil",
-      options: [
-        { label: "Modern/Minimalistisch", description: "Clean, viel Whitespace, schlichte Farben" },
-        { label: "Corporate/Professional", description: "Seriös, Business-Look" },
-        { label: "Verspielt/Bunt", description: "Lebendige Farben, abgerundete Ecken" },
-        { label: "Dark Mode", description: "Dunkler Hintergrund, helle Akzente" }
-      ],
-      multiSelect: false
-    },
-    {
-      question: "Hast du Referenz-Designs oder Websites als Inspiration?",
-      header: "Inspiration",
-      options: [
-        { label: "Ja, ich teile Links/Screenshots", description: "Ich gebe dir Beispiele im Chat" },
-        { label: "Nein, mach einen Vorschlag", description: "Du entscheidest basierend auf Best Practices" }
-      ],
-      multiSelect: false
-    },
-    {
-      question: "Gibt es Markenfarben die verwendet werden sollen?",
-      header: "Farben",
-      options: [
-        { label: "Ja, ich gebe Hex-Codes", description: "z.B. #3B82F6 für Blau" },
-        { label: "Nein, nutze Standard-Palette", description: "Tailwind Default Colors" }
-      ],
-      multiSelect: false
-    }
-  ]
-})
-```
-
-**Nach den Antworten:** Dokumentiere die Design-Entscheidungen kurz im Chat, bevor du implementierst.
-
-### 3. Technische Fragen klären
-- Mobile-first oder Desktop-first?
-- Welche Interactions? (Hover, Animations, Drag & Drop)
-- Accessibility Requirements? (WCAG 2.1 AA?)
-
-### 4. Components implementieren
-- Erstelle Components in `/src/components`
-- Nutze Tailwind CSS für Styling
-- Nutze shadcn/ui für Standard-Components (Button, Input, etc.)
-
-### 5. Integration
-- Integriere Components in Pages (`/src/app`)
-- Verbinde mit Backend APIs (fetch/axios)
-
-### 6. User Review
-- Zeige UI im Browser (localhost:3000)
-- Frage: "Passt die UI? Änderungswünsche?"
+5. **User Review:**
+   - Zeige UI im Browser (localhost:3000)
+   - Frage: "Passt die UI? Änderungswünsche?"
 
 ## Tech Stack
 - **Framework:** Next.js 16 (App Router)
@@ -156,6 +105,77 @@ export function ProjectCard({ id, title, taskCount, onDelete }: ProjectCardProps
 - **Performance:** Use React.memo for expensive components, lazy loading
 - **Error Handling:** Show loading states, error messages, empty states
 
+## Auth/Login Best Practices (Supabase + Next.js)
+
+### 1. Hard Redirect nach Login verwenden
+
+**Problem:** `router.push('/')` führt Client-Side-Navigation durch, bei der Session-Cookies möglicherweise noch nicht vollständig gesetzt sind.
+
+**Lösung:** Nach erfolgreichem Login `window.location.href` für vollständigen Page-Reload verwenden:
+
+```typescript
+// ❌ Kann zu Timing-Problemen führen
+router.refresh()
+router.push('/')
+
+// ✅ Erzwingt vollständigen Reload mit korrekten Cookies
+window.location.href = '/'
+```
+
+### 2. Session-Validierung vor Redirect
+
+**Problem:** Blind redirecten ohne zu prüfen, ob die Session tatsächlich existiert.
+
+**Lösung:** Immer `data.session` prüfen bevor weitergeleitet wird:
+
+```typescript
+const { data, error } = await supabase.auth.signInWithPassword({
+  email,
+  password,
+})
+
+if (error) {
+  setError(error.message)
+  setIsLoading(false)
+  return
+}
+
+// ✅ Session explizit prüfen
+if (data.session) {
+  window.location.href = '/'
+} else {
+  setError('Login fehlgeschlagen. Bitte versuche es erneut.')
+  setIsLoading(false)
+}
+```
+
+### 3. Loading-State immer zurücksetzen
+
+**Problem:** `setIsLoading(false)` wird nur im Error-Fall aufgerufen, Button bleibt bei "Wird geladen..." hängen.
+
+**Lösung:** Immer einen Fallback haben, der den Loading-State zurücksetzt wenn kein Redirect passiert:
+
+```typescript
+// ✅ Loading-State wird in ALLEN Fällen zurückgesetzt (außer bei erfolgreichem Redirect)
+if (data.session) {
+  window.location.href = '/'  // Page wird neu geladen, State egal
+} else {
+  setError('Login fehlgeschlagen')
+  setIsLoading(false)  // ✅ Loading-State zurücksetzen
+}
+```
+
+### 4. Debugging: Supabase Auth-Logs nutzen
+
+Bei Login-Problemen die Supabase Auth-Logs prüfen (via MCP oder Dashboard):
+- **Status 200** = Login serverseitig erfolgreich → Problem liegt im Frontend
+- **Status 400** = Invalid credentials → Falsches Passwort/Email
+- **Status 429** = Rate limit → Zu viele Versuche
+
+### 5. Hydration-Fehler
+
+Browser-Extensions können Hydration-Warnungen verursachen (z.B. "preflight-installed"). Diese sind meist harmlos und nicht die Ursache für Auth-Probleme.
+
 ## Human-in-the-Loop Checkpoints
 - ✅ Nach Component-Erstellung → User reviewt UI
 - ✅ Bei Design-Unklarheiten → User klärt Styling
@@ -171,7 +191,6 @@ export function ProjectCard({ id, title, taskCount, onDelete }: ProjectCardProps
 Bevor du die Frontend-Implementation als "fertig" markierst, stelle sicher:
 
 - [ ] **Bestehende Components geprüft:** Via Git Components/Hooks geprüft
-- [ ] **Design-Vorgaben geklärt:** Stil, Farben, Inspiration mit User besprochen (falls keine Mockups)
 - [ ] **Design gelesen:** Component Architecture vom Solution Architect verstanden
 - [ ] **Components erstellt:** Alle geplanten Components sind implementiert
 - [ ] **Tailwind Styling:** Alle Components nutzen Tailwind CSS (kein inline-style)
