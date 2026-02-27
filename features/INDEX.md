@@ -12,7 +12,7 @@
 
 | ID | Feature | Status | Spec | Created |
 |----|---------|--------|------|---------|
-| PROJ-1 | User Authentication | Planned | [PROJ-1-user-authentication.md](PROJ-1-user-authentication.md) | 2026-02-27 |
+| PROJ-1 | User Authentication | In Progress | [PROJ-1-user-authentication.md](PROJ-1-user-authentication.md) | 2026-02-27 |
 | PROJ-2 | Plant Management (CRUD + Photos) | Planned | [PROJ-2-plant-management.md](PROJ-2-plant-management.md) | 2026-02-27 |
 | PROJ-3 | AI Plant Identification | Planned | [PROJ-3-ai-plant-identification.md](PROJ-3-ai-plant-identification.md) | 2026-02-27 |
 | PROJ-4 | Care Management (Suggestions + Tasks) | Planned | [PROJ-4-care-management.md](PROJ-4-care-management.md) | 2026-02-27 |

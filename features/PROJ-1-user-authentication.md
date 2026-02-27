@@ -1,6 +1,6 @@
 # PROJ-1: User Authentication
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-02-27
 **Last Updated:** 2026-02-27
 
@@ -41,7 +41,90 @@
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+**Designed:** 2026-02-27
+
+### Seitenstruktur (Routing)
+
+```
+app/
+├── (auth)/                         ← Öffentliche Seiten (kein Login nötig)
+│   ├── login/page.tsx              ← Login-Seite
+│   ├── register/page.tsx           ← Registrierungs-Seite
+│   ├── reset-password/page.tsx     ← Passwort-Reset anfordern
+│   └── update-password/page.tsx    ← Neues Passwort setzen (via E-Mail-Link)
+├── (protected)/                    ← Alle geschützten Seiten (Login erforderlich)
+│   └── dashboard/...
+└── middleware.ts                   ← Automatischer Schutz aller Routen
+```
+
+### Komponenten-Baum
+
+```
+LoginPage
+└── AuthCard (zentriertes Card-Layout)
+    ├── AppLogo + Titel
+    ├── LoginForm
+    │   ├── EmailInput
+    │   ├── PasswordInput (Passwort anzeigen/verstecken)
+    │   ├── ForgotPasswordLink → /reset-password
+    │   ├── SubmitButton (Loading-State)
+    │   └── ErrorAlert
+    └── RegisterLink → /register
+
+RegisterPage
+└── AuthCard
+    ├── AppLogo + Titel
+    ├── RegisterForm
+    │   ├── EmailInput
+    │   ├── PasswordInput (+ Mindestlängen-Hinweis)
+    │   ├── SubmitButton (Loading-State)
+    │   └── ErrorAlert
+    └── LoginLink → /login
+
+ResetPasswordPage
+└── AuthCard
+    ├── ResetForm
+    │   ├── EmailInput
+    │   ├── SubmitButton
+    │   └── SuccessMessage
+    └── BackToLoginLink
+
+UpdatePasswordPage
+└── AuthCard
+    ├── NewPasswordForm
+    │   ├── NewPasswordInput
+    │   ├── SubmitButton
+    │   └── ErrorAlert (abgelaufener Link etc.)
+    └── BackToLoginLink
+```
+
+### Datenmodell
+
+Supabase verwaltet Nutzer intern in `auth.users` — kein eigener Code nötig.
+
+Jeder Nutzer hat automatisch:
+- Eindeutige Nutzer-ID (UUID)
+- E-Mail-Adresse + Passwort (verschlüsselt)
+- Session-Token (automatisch verlängert)
+- E-Mail-Verifizierungsstatus
+
+Kein eigener `profiles`-Table in dieser Version.
+
+### Technische Entscheidungen
+
+| Entscheidung | Warum |
+|---|---|
+| Supabase Auth | Kein externer Dienst, integriert mit DB, E-Mail-Reset eingebaut |
+| Next.js Middleware | Routenschutz vor dem Rendern — kein Flackern, kein JS nötig |
+| Route Groups (auth) / (protected) | Klare Trennung, getrennte Layouts |
+| @supabase/ssr | Pflichtpaket für Next.js App Router — Auth-State auf Server + Client |
+| react-hook-form + Zod | Bereits installiert, Live-Validierung, konsistent im gesamten Projekt |
+
+### Neue Abhängigkeiten
+
+| Paket | Zweck |
+|---|---|
+| `@supabase/ssr` | Supabase Auth für Next.js App Router (Server Components + Cookies) |
 
 ## QA Test Results
 _To be added by /qa_
