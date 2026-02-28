@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/logout-button'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { Leaf } from 'lucide-react'
 import Link from 'next/link'
 
@@ -27,7 +28,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
     </div>
   )
