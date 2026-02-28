@@ -2,7 +2,8 @@ import { z } from 'zod'
 
 export const loginSchema = z.object({
   email: z.string().email('Bitte eine gultige E-Mail-Adresse eingeben'),
-  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein'),
+  // BUG-6 fix: login only checks non-empty, not complexity rules
+  password: z.string().min(1, 'Bitte Passwort eingeben'),
 })
 
 export const registerSchema = z.object({

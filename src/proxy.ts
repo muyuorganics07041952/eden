@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const AUTH_ROUTES = ['/login', '/register', '/reset-password', '/update-password']
-const PUBLIC_ROUTES = ['/auth/callback']
+const PUBLIC_ROUTES = ['/auth/callback', '/api/auth']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
