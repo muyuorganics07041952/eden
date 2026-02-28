@@ -474,4 +474,13 @@ No other features are in "Deployed" status. PROJ-2 through PROJ-8 are all "Plann
 - **Recommendation:** PROJ-1 is ready for deployment. All critical and high-severity bugs are fixed. The 5 remaining low-severity bugs are maintenance/hygiene items that should be addressed in the next sprint but do not block production. Specifically, BUG-11/12/13 should be grouped as a single "DRY: centralize Zod schemas" refactor task.
 
 ## Deployment
-_To be added by /deploy_
+**Deployed:** 2026-02-28
+**Production URL:** https://eden-azure-zeta.vercel.app
+**Platform:** Vercel (auto-deploy on push to main)
+**Build:** Next.js 16 (Turbopack), all 13 routes generated successfully
+
+### Post-Deployment Checklist
+- [x] Vercel build successful
+- [x] Production URL accessible
+- [x] Environment variables set in Vercel (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_APP_URL)
+- [x] Supabase redirect URL updated to include production callback URL
