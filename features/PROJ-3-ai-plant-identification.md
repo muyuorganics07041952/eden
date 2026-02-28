@@ -51,7 +51,106 @@
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Overview
+PROJ-3 extends the existing `AddPlantSheet` with an identification section at the top. There are no new database tables — the identified photo is saved via the existing photo upload route after the plant is created.
+
+---
+
+### Component Structure
+
+```
+AddPlantSheet (modified)
++-- PlantIdentifySection (new component)
+|   +-- "Pflanze identifizieren" Button  ← triggers file picker (hidden <input type="file">)
+|   +-- [Loading state]                  ← spinner while API processes (max 10s)
+|   +-- IdentifyResults                  ← shown after successful response
+|   |   +-- SuggestionCard × 3           ← name (DE/EN) + latin name + confidence %
+|   |   +-- "Manuell eingeben" Button    ← clears results, keeps form empty
+|   +-- [Error state]                    ← API/network/low-confidence messages
++-- Form Fields (existing)
+|   +-- Name * (pre-filled on selection)
+|   +-- Art / Gattung (pre-filled on selection)
+|   +-- Standort
+|   +-- Pflanzdatum
+|   +-- Notizen
++-- Footer Buttons (existing)
+    +-- Abbrechen
+    +-- Speichern
+```
+
+---
+
+### Data Flow
+
+```
+1. User clicks "Pflanze identifizieren"
+   → File picker opens (JPEG/PNG/WebP, max 10 MB)
+
+2. User selects photo
+   → Canvas API compresses to max 1 MB at 85% quality (client-side, no upload yet)
+
+3. Compressed image sent to POST /api/identify
+   → Server calls Plant.id v3 API (API key hidden on server)
+   → Server returns top 3 results: [{ name, species, confidence }]
+
+4a. Results shown → User selects a suggestion
+   → Name and Art/Gattung fields pre-filled (still editable)
+   → Identify photo stored in local state (not uploaded yet)
+
+4b. User clicks "Manuell eingeben"
+   → Results cleared, form fields remain empty
+
+5. User fills in remaining fields, clicks "Speichern"
+   → POST /api/plants → plant created
+   → If identify photo in state: POST /api/plants/[id]/photos
+     (uses existing route — photo becomes cover automatically)
+   → If plant creation fails: photo NOT uploaded (atomic)
+```
+
+---
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/components/plants/plant-identify-section.tsx` | Self-contained UI: button, file picker, compression, API call, result cards |
+| `src/app/api/identify/route.ts` | Server-side proxy to Plant.id v3 — keeps API key hidden |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `src/components/plants/add-plant-sheet.tsx` | Mount `PlantIdentifySection`, hold `identifyPhoto` state, upload photo after plant creation |
+
+---
+
+### API Route: POST /api/identify
+
+- **Input:** `multipart/form-data` with compressed image (max 1 MB)
+- **Output:** `[{ name: string, species: string, confidence: number }]` (top 3)
+- **Error cases:** timeout (10s), API 5xx, 429 rate limit, no plant detected (confidence < 10%)
+- **Auth:** Supabase session required (same pattern as existing routes)
+- **No caching** — every photo is unique
+
+---
+
+### Tech Decisions
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| API location | Server-side Next.js route | API key stays hidden from browser |
+| Image compression | Browser Canvas API | No new dependency — built into every browser |
+| Photo storage | Reuse existing `/api/plants/[id]/photos` | No duplication, consistent behavior |
+| New DB tables | None | Everything reuses existing schema |
+| Caching | None | Every photo is a unique request |
+| Identify state management | Component-local state | No cross-component sharing needed |
+
+---
+
+### Dependencies
+
+No new packages required. All tools used (Canvas API, `fetch`, FormData) are browser/Node built-ins.
 
 ## QA Test Results
 _To be added by /qa_
