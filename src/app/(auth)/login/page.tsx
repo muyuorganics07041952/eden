@@ -7,7 +7,6 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,20 +34,20 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const supabase = createClient()
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, password: data.password }),
       })
 
-      if (authError) {
-        setError('E-Mail oder Passwort ist falsch.')
+      const result = await res.json()
+
+      if (!res.ok) {
+        setError(result.error || 'E-Mail oder Passwort ist falsch.')
         return
       }
 
-      if (authData.session) {
-        window.location.href = '/dashboard'
-      }
+      window.location.href = '/dashboard'
     } catch {
       setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.')
     } finally {

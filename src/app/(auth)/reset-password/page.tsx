@@ -7,7 +7,6 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { Leaf, Loader2, ArrowLeft } from 'lucide-react'
 
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,13 +33,16 @@ export default function ResetPasswordPage() {
     setError(null)
 
     try {
-      const supabase = createClient()
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email }),
       })
 
-      if (resetError) {
-        setError('E-Mail konnte nicht gesendet werden. Bitte versuche es erneut.')
+      const result = await res.json()
+
+      if (!res.ok) {
+        setError(result.error || 'E-Mail konnte nicht gesendet werden. Bitte versuche es erneut.')
         return
       }
 
