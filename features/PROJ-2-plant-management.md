@@ -2,7 +2,7 @@
 
 ## Status: Planned
 **Created:** 2026-02-27
-**Last Updated:** 2026-02-27
+**Last Updated:** 2026-02-28
 
 ## Dependencies
 - Requires: PROJ-1 (User Authentication) — Pflanzen sind nutzergebunden
@@ -20,8 +20,9 @@
 - [ ] Nutzer kann bis zu 5 Fotos pro Pflanze hochladen (Supabase Storage)
 - [ ] Nutzer kann ein Hauptfoto (Cover) festlegen, das auf der Karte angezeigt wird
 - [ ] Pflanzen werden in einer Card-Grid-Ansicht dargestellt (Bild + Name + Art)
+- [ ] Nutzer kann die Liste sortieren: Zuletzt hinzugefügt / Alphabetisch (Sortier-Dropdown)
 - [ ] Nutzer kann alle Felder einer Pflanze bearbeiten
-- [ ] Nutzer kann eine Pflanze löschen (mit Bestätigungs-Dialog)
+- [ ] Nutzer kann eine Pflanze löschen (mit Bestätigungs-Dialog) — Fotos werden sofort mitgelöscht
 - [ ] Leerer Zustand (keine Pflanzen): freundliche Empty-State-Ansicht mit Call-to-Action
 - [ ] Pflanzenliste ist nur für eingeloggte Nutzer sichtbar
 
