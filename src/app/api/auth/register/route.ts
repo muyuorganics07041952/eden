@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { registerSchema } from '@/lib/validations/auth'
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 
 export async function POST(request: Request) {
   try {
@@ -18,9 +17,8 @@ export async function POST(request: Request) {
 
     const { email, password } = result.data
 
-    // Derive origin from request headers for the email redirect URL
-    const headersList = await headers()
-    const origin = headersList.get('origin') || headersList.get('referer')?.replace(/\/[^/]*$/, '') || ''
+    // BUG-3 fix: use server-side env var instead of spoofable Origin header
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
     const supabase = await createClient()
 
@@ -28,7 +26,7 @@ export async function POST(request: Request) {
       email,
       password,
       options: {
-        emailRedirectTo: `${origin}/auth/callback`,
+        emailRedirectTo: `${appUrl}/auth/callback`,
       },
     })
 

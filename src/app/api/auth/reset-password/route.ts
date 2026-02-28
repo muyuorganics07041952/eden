@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { resetPasswordSchema } from '@/lib/validations/auth'
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 
 export async function POST(request: Request) {
   try {
@@ -18,14 +17,13 @@ export async function POST(request: Request) {
 
     const { email } = result.data
 
-    // Derive origin from request headers
-    const headersList = await headers()
-    const origin = headersList.get('origin') || headersList.get('referer')?.replace(/\/[^/]*$/, '') || ''
+    // BUG-3 fix: use server-side env var instead of spoofable Origin header
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
     const supabase = await createClient()
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/auth/callback?type=recovery`,
+      redirectTo: `${appUrl}/auth/callback?type=recovery`,
     })
 
     if (error) {

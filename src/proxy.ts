@@ -35,6 +35,7 @@ export async function proxy(request: NextRequest) {
   // Redirect unauthenticated users away from protected routes
   if (!user && !isAuthRoute && !isPublicRoute && pathname !== '/') {
     const url = request.nextUrl.clone()
+    url.searchParams.set('redirectTo', pathname)
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }

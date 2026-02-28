@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Leaf, Loader2, ArrowLeft } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -19,9 +20,13 @@ const resetSchema = z.object({
 
 type ResetForm = z.infer<typeof resetSchema>
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
+  const searchParams = useSearchParams()
+  // BUG-2: read error message from callback redirect (e.g. expired reset link)
+  const urlError = searchParams.get('error')
+
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(urlError)
   const [success, setSuccess] = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<ResetForm>({
@@ -120,5 +125,13 @@ export default function ResetPasswordPage() {
         </Link>
       </CardFooter>
     </Card>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordContent />
+    </Suspense>
   )
 }

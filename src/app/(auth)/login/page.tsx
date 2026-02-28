@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -13,17 +14,24 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
+// BUG-4 fix: login only needs to check non-empty, not complexity rules
 const loginSchema = z.object({
   email: z.string().email('Bitte eine gültige E-Mail-Adresse eingeben'),
-  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein'),
+  password: z.string().min(1, 'Bitte Passwort eingeben'),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
+function LoginContent() {
+  const searchParams = useSearchParams()
+  // BUG-1: read redirectTo for post-login redirect
+  const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+  // BUG-2: read error message from callback redirects (e.g. expired links)
+  const urlError = searchParams.get('error')
+
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(urlError)
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -47,7 +55,8 @@ export default function LoginPage() {
         return
       }
 
-      window.location.href = '/dashboard'
+      // BUG-1 fix: redirect back to original page
+      window.location.href = redirectTo
     } catch {
       setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.')
     } finally {
@@ -138,5 +147,13 @@ export default function LoginPage() {
         </Link>
       </CardFooter>
     </Card>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   )
 }
