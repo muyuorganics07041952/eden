@@ -29,9 +29,11 @@ export function DeletePlantDialog({
   onDeleted,
 }: DeletePlantDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function handleDelete() {
     setIsDeleting(true)
+    setDeleteError(null)
     try {
       const res = await fetch(`/api/plants/${plantId}`, {
         method: "DELETE",
@@ -43,6 +45,7 @@ export function DeletePlantDialog({
 
       onDeleted()
     } catch {
+      setDeleteError("Fehler beim Löschen. Bitte versuche es erneut.")
       setIsDeleting(false)
     }
   }
@@ -58,6 +61,9 @@ export function DeletePlantDialog({
             rückgängig gemacht werden.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {deleteError && (
+          <p className="text-sm text-destructive px-1">{deleteError}</p>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
           <AlertDialogAction

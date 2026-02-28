@@ -29,7 +29,7 @@ export default function PlantsPage() {
       const res = await fetch(`/api/plants?sort=${sortOption}`)
       if (!res.ok) throw new Error("Fehler beim Laden")
       const data = await res.json()
-      setPlants(data.plants ?? [])
+      setPlants(Array.isArray(data) ? data : [])
     } catch {
       setError("Fehler beim Laden der Pflanzen")
       setPlants([])
