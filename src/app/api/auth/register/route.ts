@@ -18,7 +18,14 @@ export async function POST(request: Request) {
     const { email, password } = result.data
 
     // BUG-3 fix: use server-side env var instead of spoofable Origin header
+    // BUG-8 fix: validate env var is set before use
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    if (!appUrl) {
+      return NextResponse.json(
+        { error: 'Server-Konfigurationsfehler.' },
+        { status: 500 }
+      )
+    }
 
     const supabase = await createClient()
 

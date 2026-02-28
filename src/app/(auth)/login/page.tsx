@@ -25,7 +25,12 @@ type LoginForm = z.infer<typeof loginSchema>
 function LoginContent() {
   const searchParams = useSearchParams()
   // BUG-1: read redirectTo for post-login redirect
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+  // BUG-7 fix: only allow safe relative paths to prevent open redirect
+  const rawRedirect = searchParams.get('redirectTo') || '/dashboard'
+  const redirectTo =
+    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+      ? rawRedirect
+      : '/dashboard'
   // BUG-2: read error message from callback redirects (e.g. expired links)
   const urlError = searchParams.get('error')
 

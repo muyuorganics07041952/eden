@@ -18,13 +18,26 @@ export async function POST(request: Request) {
     const { email } = result.data
 
     // BUG-3 fix: use server-side env var instead of spoofable Origin header
+    // BUG-8 fix: validate env var is set before use
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    if (!appUrl) {
+      return NextResponse.json(
+        { error: 'Server-Konfigurationsfehler.' },
+        { status: 500 }
+      )
+    }
 
     const supabase = await createClient()
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${appUrl}/auth/callback?type=recovery`,
-    })
+    // BUG-9 fix: use consistent timing to prevent email enumeration via response time
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 200))
+
+    const [{ error }] = await Promise.all([
+      supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${appUrl}/auth/callback?type=recovery`,
+      }),
+      minDelay,
+    ])
 
     if (error) {
       return NextResponse.json(
