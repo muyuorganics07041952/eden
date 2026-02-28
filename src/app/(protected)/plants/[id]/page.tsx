@@ -34,7 +34,7 @@ export default function PlantDetailPage() {
       }
       if (!res.ok) throw new Error("Fehler beim Laden")
       const data = await res.json()
-      setPlant(data.plant)
+      setPlant(data)
     } catch {
       setError("Fehler beim Laden der Pflanze")
     } finally {

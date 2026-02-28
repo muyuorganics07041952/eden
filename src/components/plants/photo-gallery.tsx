@@ -54,7 +54,7 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
       }
 
       const data = await res.json()
-      onPhotosChange([...photos, data.photo])
+      onPhotosChange([...photos, data])
     } catch {
       setError("Fehler beim Hochladen. Bitte versuche es erneut.")
     } finally {
@@ -92,7 +92,13 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
 
       if (!res.ok) throw new Error("Fehler")
 
-      onPhotosChange(photos.filter((p) => p.id !== photoId))
+      const deletedPhoto = photos.find((p) => p.id === photoId)
+      const remaining = photos.filter((p) => p.id !== photoId)
+      // If the deleted photo was the cover, assign cover to the next remaining photo
+      if (deletedPhoto?.is_cover && remaining.length > 0) {
+        remaining[0] = { ...remaining[0], is_cover: true }
+      }
+      onPhotosChange(remaining)
     } catch {
       setError("Fehler beim Entfernen des Fotos.")
     } finally {

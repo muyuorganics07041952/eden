@@ -29,7 +29,7 @@ import type { Plant } from "@/lib/types/plants"
 const plantFormSchema = z.object({
   name: z.string().min(1, "Name ist erforderlich").max(100, "Maximal 100 Zeichen"),
   species: z.string().max(100).optional().or(z.literal("")),
-  location: z.string().max(200).optional().or(z.literal("")),
+  location: z.string().max(100).optional().or(z.literal("")),
   planted_at: z.string().optional().or(z.literal("")),
   notes: z.string().max(1000, "Maximal 1000 Zeichen").optional().or(z.literal("")),
 })
@@ -89,7 +89,7 @@ export function EditPlantSheet({ plant, open, onOpenChange, onSuccess }: EditPla
 
       const data = await res.json()
       onOpenChange(false)
-      onSuccess(data.plant)
+      onSuccess(data)
     } catch {
       form.setError("name", { message: "Fehler beim Speichern. Bitte versuche es erneut." })
     }
