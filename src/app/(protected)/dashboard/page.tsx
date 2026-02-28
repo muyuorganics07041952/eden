@@ -35,7 +35,7 @@ export default async function DashboardPage() {
         </CardHeader>
         <CardContent className="flex justify-center">
           <Button asChild>
-            <Link href="/plants/new">Erste Pflanze anlegen</Link>
+            <Link href="/plants">Erste Pflanze anlegen</Link>
           </Button>
         </CardContent>
       </Card>
