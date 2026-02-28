@@ -126,6 +126,33 @@ Kein eigener `profiles`-Table in dieser Version.
 |---|---|
 | `@supabase/ssr` | Supabase Auth für Next.js App Router (Server Components + Cookies) |
 
+## Backend Implementation Notes
+**Implemented:** 2026-02-28
+
+### API Routes (alle server-seitig, Zod-validiert)
+| Route | Methode | Funktion |
+|---|---|---|
+| `/api/auth/login` | POST | E-Mail/Passwort Login via Supabase Auth |
+| `/api/auth/register` | POST | Neues Konto erstellen, E-Mail-Bestätigung |
+| `/api/auth/reset-password` | POST | Passwort-Reset-Link per E-Mail senden |
+| `/api/auth/update-password` | POST | Neues Passwort setzen (nach Recovery-Token) |
+
+### Shared Validation Schemas
+`src/lib/validations/auth.ts` — zentrale Zod-Schemas für alle Auth-Routen:
+`loginSchema`, `registerSchema`, `resetPasswordSchema`, `updatePasswordSchema`
+
+### Route Protection
+`src/proxy.ts` (Next.js 16) — schützt alle Routen außer Auth-Seiten:
+- Nicht eingeloggt → Redirect zu `/login`
+- Eingeloggt auf Auth-Seite → Redirect zu `/dashboard`
+- Root `/` → Redirect je nach Session-Status
+
+### Kein eigener DB-Table
+Supabase verwaltet `auth.users` intern — keine Migration nötig.
+
+### Rate Limiting
+Supabase built-in Rate Limiting auf allen Auth-Endpunkten — kein eigenes Rate Limiting erforderlich.
+
 ## QA Test Results
 _To be added by /qa_
 

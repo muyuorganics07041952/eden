@@ -7,7 +7,6 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -40,25 +39,20 @@ export default function RegisterPage() {
     setError(null)
 
     try {
-      const supabase = createClient()
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, password: data.password }),
       })
 
-      if (authError) {
-        if (authError.message.includes('already registered')) {
-          setError('Diese E-Mail-Adresse ist bereits registriert.')
-        } else {
-          setError('Registrierung fehlgeschlagen. Bitte versuche es erneut.')
-        }
+      const result = await res.json()
+
+      if (!res.ok) {
+        setError(result.error || 'Registrierung fehlgeschlagen. Bitte versuche es erneut.')
         return
       }
 
-      if (authData.session) {
+      if (result.session) {
         window.location.href = '/dashboard'
         return
       }

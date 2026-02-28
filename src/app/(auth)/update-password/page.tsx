@@ -7,7 +7,6 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { Leaf, Eye, EyeOff, Loader2 } from 'lucide-react'
 
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,17 +42,16 @@ export default function UpdatePasswordPage() {
     setError(null)
 
     try {
-      const supabase = createClient()
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: data.password,
+      const res = await fetch('/api/auth/update-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: data.password }),
       })
 
-      if (updateError) {
-        if (updateError.message.includes('expired') || updateError.message.includes('invalid')) {
-          setError('Der Link ist abgelaufen. Bitte fordere einen neuen Link an.')
-        } else {
-          setError('Passwort konnte nicht aktualisiert werden. Bitte versuche es erneut.')
-        }
+      const result = await res.json()
+
+      if (!res.ok) {
+        setError(result.error || 'Passwort konnte nicht aktualisiert werden. Bitte versuche es erneut.')
         return
       }
 
