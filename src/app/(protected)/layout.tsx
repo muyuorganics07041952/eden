@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/logout-button'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { Leaf } from 'lucide-react'
+import { Leaf, CheckSquare } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -21,6 +21,15 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             <Leaf className="h-5 w-5 text-primary" />
             Eden
           </Link>
+          <nav className="flex items-center gap-4">
+            <Link href="/plants" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Pflanzen
+            </Link>
+            <Link href="/tasks" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <CheckSquare className="h-4 w-4" />
+              Aufgaben
+            </Link>
+          </nav>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user.email}</span>
             <LogoutButton />

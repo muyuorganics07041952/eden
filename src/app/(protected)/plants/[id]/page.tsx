@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { PhotoGallery } from "@/components/plants/photo-gallery"
 import { EditPlantSheet } from "@/components/plants/edit-plant-sheet"
 import { DeletePlantDialog } from "@/components/plants/delete-plant-dialog"
+import { CareTaskSection } from "@/components/care/care-task-section"
 import type { Plant, PlantPhoto } from "@/lib/types/plants"
 
 export default function PlantDetailPage() {
@@ -211,6 +212,9 @@ export default function PlantDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Care Tasks */}
+      <CareTaskSection plantId={plant.id} />
 
       {/* Edit Sheet */}
       <EditPlantSheet
