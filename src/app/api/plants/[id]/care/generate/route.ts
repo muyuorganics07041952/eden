@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { FREQUENCY_INTERVAL_MAP } from '@/lib/types/care'
 import type { CareFrequency } from '@/lib/types/care'
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 const API_TIMEOUT = 15_000 // 15 seconds
 
 // In-memory rate limiter: max 5 requests per user per 60 seconds
