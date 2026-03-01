@@ -150,14 +150,28 @@ Jede Aufgabe hat folgende Felder:
 
     const result = await response.json()
 
-    // Extract text from Gemini response
-    const rawText: string = result?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    // Combine text from all parts — thinking models (gemini-2.5-flash) may split
+    // the reasoning and the actual answer into separate parts
+    const parts: Array<{ text?: string }> = result?.candidates?.[0]?.content?.parts ?? []
+    const rawText: string = parts.map((p) => p.text ?? '').join('\n')
 
-    // Parse JSON — strip markdown code fences if present
-    const jsonMatch = rawText.replace(/```json?\s*/g, '').replace(/```/g, '').trim()
+    // Robustly extract the JSON array from wherever it appears in the response.
+    // Strip markdown fences first, then find [ ... ] boundaries.
+    const stripped = rawText.replace(/```json?\s*/g, '').replace(/```/g, '')
+    const startIdx = stripped.indexOf('[')
+    const endIdx = stripped.lastIndexOf(']')
+
     let parsedTasks: GeminiTask[]
+    if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+      console.error('No JSON array found in Gemini response:', rawText)
+      return NextResponse.json(
+        { error: 'KI-Antwort konnte nicht verarbeitet werden. Bitte versuche es erneut.' },
+        { status: 502 }
+      )
+    }
+
     try {
-      parsedTasks = JSON.parse(jsonMatch)
+      parsedTasks = JSON.parse(stripped.slice(startIdx, endIdx + 1))
     } catch {
       console.error('Failed to parse Gemini response as JSON:', rawText)
       return NextResponse.json(
