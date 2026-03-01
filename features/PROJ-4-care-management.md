@@ -1,6 +1,6 @@
 # PROJ-4: Care Management
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-02-27
 **Last Updated:** 2026-03-01
 
@@ -216,4 +216,8 @@ None — existing stack covers everything.
 ### Verdict: APPROVED (with minor note on BUG-4)
 
 ## Deployment
-_To be added by /deploy_
+
+**Production URL:** https://eden-azure-zeta.vercel.app
+**Deployed:** 2026-03-01
+**Git tag:** v1.3.0-PROJ-4
+**Deployed by:** /deploy skill
