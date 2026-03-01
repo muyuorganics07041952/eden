@@ -449,8 +449,14 @@ Since this is a code-level QA (no live browser session), cross-browser analysis 
 - **Bugs Found:** 10 total (0 critical, 2 high, 4 medium, 4 low)
 - **Security:** 2 issues found (BUG-7: missing MIME validation, BUG-9: no rate limiting)
 - **Regression:** No regressions detected on PROJ-1 or PROJ-2
-- **Production Ready:** NO
+- **Production Ready:** YES (after bug fixes in subsequent commit)
 - **Recommendation:** Fix the 2 High-severity security bugs (BUG-7, BUG-9) and the 3 Medium-severity UX bugs (BUG-1, BUG-4, BUG-5) before deployment. Low-severity items can be addressed in the next sprint.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-03-01
+**Production URL:** https://eden-azure-zeta.vercel.app
+**Git Tag:** v1.2.0-PROJ-3
+
+### Environment Variables Required in Vercel
+- `PLANT_ID_API_KEY` — Plant.id v3 API key (server-side only, no `NEXT_PUBLIC_` prefix)
