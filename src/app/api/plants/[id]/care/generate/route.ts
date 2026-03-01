@@ -124,8 +124,16 @@ Jede Aufgabe hat folgende Felder:
 
     clearTimeout(timeout)
 
-    if (response.status === 429 || response.status >= 500) {
-      console.error('Gemini API error:', response.status)
+    if (response.status === 429) {
+      console.error('Gemini API rate limit hit:', response.status)
+      return NextResponse.json(
+        { error: 'KI-Kontingent erschöpft – bitte warte eine Minute und versuche es erneut.' },
+        { status: 503 }
+      )
+    }
+
+    if (response.status >= 500) {
+      console.error('Gemini API server error:', response.status)
       return NextResponse.json(
         { error: 'KI-Dienst ist vorübergehend nicht erreichbar. Bitte versuche es später erneut.' },
         { status: 503 }
