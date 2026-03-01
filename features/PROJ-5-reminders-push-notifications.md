@@ -44,7 +44,97 @@
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Wie Push Notifications funktionieren (Übersicht)
+
+```
+Browser                    Server (Vercel)           Google/Mozilla Push Service
+  |                              |                              |
+  |-- Nutzer erlaubt Push -----> |                              |
+  |<-- Subscription (endpoint) -|                              |
+  |-- POST /api/push/subscribe ->|                              |
+  |   (endpoint + timezone)      |                              |
+  |                              |                              |
+  |              Vercel Cron (stündlich)                        |
+  |                    ↓                                        |
+  |              Wer hat jetzt Reminder?                        |
+  |                    ↓                                        |
+  |              Hat der Nutzer Aufgaben heute?                 |
+  |                    ↓                                        |
+  |              POST → Push Service -------push message -----> |
+  |<------------------------------------ Notification anzeigen--|
+```
+
+### Component Structure
+
+```
+/settings (NEUE Seite)
++-- NotificationSettingsCard
+    +-- Toggle: Benachrichtigungen aktivieren/deaktivieren
+    +-- TimePicker: Erinnerungszeit (Stunde, z.B. "08:00 Uhr")
+    +-- Status: "Aktiv auf diesem Gerät" / "Nicht erlaubt"
+    +-- Button: "Berechtigung erneut anfordern" (nur wenn verweigert)
+
+NotificationBanner (NEU, eingebettet in /plants)
++-- Erscheint einmalig wenn: Pflanzen vorhanden + Push noch nicht aktiviert
++-- "Jetzt aktivieren" → fragt Permission an
++-- "Später" → blendet Banner für Session aus
+
+Navigation (bestehend, erweitert)
++-- Neuer Link: "Einstellungen" → /settings
+```
+
+### Data Model
+
+**Neue Tabelle: `push_subscriptions`**
+
+| Feld | Beschreibung |
+|------|--------------|
+| ID | Eindeutige ID |
+| User ID | Verknüpfung mit Nutzer (RLS) |
+| Endpoint | URL des Browser-Push-Dienstes (gerätespezifisch) |
+| P256DH Key | Verschlüsselungsschlüssel (vom Browser) |
+| Auth Key | Auth-Token (vom Browser) |
+| Timezone | IANA-Zeitzone des Nutzers (z.B. `"Europe/Berlin"`) |
+| Reminder Hour | Stunde 0–23 in lokaler Zeit (z.B. `8` = 08:00 Uhr) |
+| Enabled | Benachrichtigungen an/aus |
+| Created At | Zeitstempel |
+
+Ein Nutzer kann mehrere Subscriptions haben (Handy + Laptop). Alle aktiven Geräte bekommen die Benachrichtigung.
+
+### Tech Decisions
+
+| Entscheidung | Wahl | Warum |
+|---|---|---|
+| Scheduling | Vercel Cron Jobs (stündlich) | Bereits auf Vercel, kostenlos im Hobby-Plan, keine externe Infrastruktur |
+| Push-Protokoll | Web Push API + VAPID | Web-Standard, funktioniert in Chrome, Firefox, Edge, Safari 16.4+ (iOS) |
+| Granularität | reminder_hour (0–23) | Stundengenauigkeit reicht für tägliche Erinnerungen; Minuten-Cron wäre zu häufig |
+| Zeitzone | Browser IANA-String | `Intl.DateTimeFormat().resolvedOptions().timeZone` — automatisch, kein manuelles Abfragen |
+| VAPID Keys | Server-seitig | Privater Key bleibt auf Vercel, nur öffentlicher Key geht zum Browser |
+
+### New API Endpoints
+
+| Endpoint | Zweck |
+|---|---|
+| `POST /api/push/subscribe` | Subscription speichern/aktualisieren |
+| `DELETE /api/push/subscribe` | Subscription löschen (Deaktivierung) |
+| `PUT /api/push/settings` | Erinnerungszeit ändern |
+| `POST /api/push/send` | Cron-Endpunkt: Benachrichtigungen versenden (gesichert via CRON_SECRET) |
+
+### New Dependencies
+
+| Paket | Zweck |
+|-------|-------|
+| `web-push` | Sendet VAPID-signierte Push-Nachrichten vom Server |
+
+### New Environment Variables
+
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...   ← für Browser (Subscribe)
+VAPID_PRIVATE_KEY=...              ← nur Server (Senden)
+VAPID_SUBJECT=mailto:...           ← E-Mail für VAPID-Identifikation
+CRON_SECRET=...                    ← schützt /api/push/send vor fremden Aufrufen
+```
 
 ## QA Test Results
 _To be added by /qa_
