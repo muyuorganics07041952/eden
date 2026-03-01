@@ -193,6 +193,15 @@ export function PlantIdentifySection({ onSelect, onPhotoReady, onClear }: PlantI
         return
       }
 
+      if (res.status === 503) {
+        setState({
+          status: "error",
+          message: "Pflanzenidentifikation ist derzeit nicht verfügbar. Bitte versuche es später erneut.",
+          canRetry: false,
+        })
+        return
+      }
+
       if (!res.ok) {
         throw new Error(`Server error: ${res.status}`)
       }
