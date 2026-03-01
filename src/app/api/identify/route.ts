@@ -97,8 +97,6 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         images: [`data:${imageFile.type};base64,${base64}`],
-        // Request classification for common name and scientific name
-        similar_images: false,
       }),
       signal: controller.signal,
     })
