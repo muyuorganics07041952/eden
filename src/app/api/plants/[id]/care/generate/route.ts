@@ -117,6 +117,10 @@ Jede Aufgabe hat folgende Felder:
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 1024,
+          responseMimeType: 'application/json',
+        },
+        thinkingConfig: {
+          thinkingBudget: 0,
         },
       }),
       signal: controller.signal,
@@ -150,10 +154,10 @@ Jede Aufgabe hat folgende Felder:
 
     const result = await response.json()
 
-    // Combine text from all parts — thinking models (gemini-2.5-flash) may split
-    // the reasoning and the actual answer into separate parts
-    const parts: Array<{ text?: string }> = result?.candidates?.[0]?.content?.parts ?? []
-    const rawText: string = parts.map((p) => p.text ?? '').join('\n')
+    // Combine text from non-thinking parts only.
+    // gemini-2.5-flash may return thought:true parts (reasoning) — skip those.
+    const parts: Array<{ text?: string; thought?: boolean }> = result?.candidates?.[0]?.content?.parts ?? []
+    const rawText: string = parts.filter((p) => !p.thought).map((p) => p.text ?? '').join('\n')
 
     // Robustly extract the JSON array from wherever it appears in the response.
     // Strip markdown fences first, then find [ ... ] boundaries.
