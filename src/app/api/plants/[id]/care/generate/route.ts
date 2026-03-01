@@ -119,9 +119,6 @@ Jede Aufgabe hat folgende Felder:
           maxOutputTokens: 1024,
           responseMimeType: 'application/json',
         },
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
       }),
       signal: controller.signal,
     })
