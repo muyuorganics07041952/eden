@@ -32,7 +32,7 @@ Eine progressive Web-App (PWA) für Gartenbegeisterte, die ihre Pflanzen digital
 ## Constraints
 - Solo-Entwickler, kein fixes Budget oder Timeline
 - Tech Stack: Next.js 16 (App Router), Supabase, Tailwind CSS + shadcn/ui
-- Externe APIs: Plant.id (Pflanzenerkennung), OpenAI (Care-Vorschläge + Content)
+- Externe APIs: Plant.id (Pflanzenerkennung), Google Gemini (Care-Vorschläge + Content)
 - Plattform: PWA (kein Native App)
 
 ## Non-Goals
