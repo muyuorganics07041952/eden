@@ -1,6 +1,6 @@
 # PROJ-8: Offline & PWA Optimization
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-02-27
 **Last Updated:** 2026-03-02
 
@@ -346,4 +346,19 @@ Lighthouse testing requires serving the production build (`npm run build && npm 
 - **Recommendation:** Fix BUG-1 (offline action disabling) and BUG-2 (umlauts) first. Manually verify BUG-3 on production build. Then run Lighthouse to confirm performance targets. Deploy after.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-03-02
+**Production URL:** https://eden-nu-five.vercel.app
+**Commit:** 8e2cd79
+**Git Tag:** v1.8.0-PROJ-8
+
+### Post-Deployment Verification Checklist
+- [ ] App loads at production URL
+- [ ] DevTools → Application → Manifest shows correct Eden manifest
+- [ ] DevTools → Application → Service Workers shows SW active
+- [ ] Chrome install icon appears in address bar (or install banner after a few visits)
+- [ ] DevTools → Network → Offline → pages still load from cache
+- [ ] Offline banner appears when switching to offline mode
+- [ ] Plant creation disabled with offline message when offline
+- [ ] Settings page shows iOS install guide (test on iPhone or user agent spoof)
+- [ ] Lighthouse PWA score ≥ 90 (run in Chrome DevTools)

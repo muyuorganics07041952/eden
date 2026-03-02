@@ -19,7 +19,7 @@
 | PROJ-5 | Reminders & Push Notifications | Deployed | [PROJ-5-reminders-push-notifications.md](PROJ-5-reminders-push-notifications.md) | 2026-02-27 |
 | PROJ-6 | Content Feed | Deployed | [PROJ-6-content-feed.md](PROJ-6-content-feed.md) | 2026-02-27 |
 | PROJ-7 | Garden Dashboard | Deployed | [PROJ-7-garden-dashboard.md](PROJ-7-garden-dashboard.md) | 2026-02-27 |
-| PROJ-8 | Offline & PWA Optimization | In Review | [PROJ-8-offline-pwa-optimization.md](PROJ-8-offline-pwa-optimization.md) | 2026-02-27 |
+| PROJ-8 | Offline & PWA Optimization | Deployed | [PROJ-8-offline-pwa-optimization.md](PROJ-8-offline-pwa-optimization.md) | 2026-02-27 |
 | PROJ-9 | Care Management Improvements | Planned | [PROJ-9-care-management-improvements.md](PROJ-9-care-management-improvements.md) | 2026-03-01 |
 
 <!-- Add features above this line -->
