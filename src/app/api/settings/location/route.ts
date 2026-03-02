@@ -2,6 +2,20 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
+// Simple in-memory rate limiter: 5 saves per user per 60 seconds
+const rateLimitMap = new Map<string, number[]>()
+const RATE_LIMIT_MAX = 5
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = (rateLimitMap.get(userId) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  if (timestamps.length >= RATE_LIMIT_MAX) return true
+  timestamps.push(now)
+  rateLimitMap.set(userId, timestamps)
+  return false
+}
+
 const locationSchema = z.object({
   city_name: z.string().min(1, 'Stadtname ist erforderlich').max(100),
   latitude: z.number().min(-90).max(90),
@@ -14,6 +28,13 @@ export async function PATCH(request: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
+  }
+
+  if (isRateLimited(user.id)) {
+    return NextResponse.json(
+      { error: 'Zu viele Anfragen. Bitte warte kurz und versuche es erneut.' },
+      { status: 429 }
+    )
   }
 
   let body: unknown

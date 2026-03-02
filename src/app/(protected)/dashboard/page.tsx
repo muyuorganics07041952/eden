@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { Leaf, Sprout, ClipboardList, Newspaper, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,6 +8,7 @@ import { ArticleCard } from '@/components/feed/article-card'
 import { UpcomingTasksSection } from '@/components/dashboard/upcoming-tasks-section'
 import { SeasonalTipWidget } from '@/components/dashboard/seasonal-tip-widget'
 import { WeatherWidget } from '@/components/dashboard/weather-widget'
+import { WeatherSection, WeatherSkeleton } from '@/components/dashboard/weather-section'
 import type { FeedArticle } from '@/lib/types/feed'
 
 type TaskRow = {
@@ -14,14 +16,6 @@ type TaskRow = {
   name: string
   next_due_date: string
   plants: { name: string } | null
-}
-
-interface WeatherDaily {
-  time: string[]
-  weathercode: number[]
-  temperature_2m_max: number[]
-  temperature_2m_min: number[]
-  precipitation_probability_max: number[]
 }
 
 export default async function DashboardPage() {
@@ -39,7 +33,7 @@ export default async function DashboardPage() {
     { data: personalizedArticles },
     { data: generalArticles },
     { data: upcomingTasksRaw },
-    { count: overdueCount },
+    { data: overdueTasksRaw },
     { data: userSettings },
   ] = await Promise.all([
     supabase
@@ -71,7 +65,7 @@ export default async function DashboardPage() {
       .limit(6),
     supabase
       .from('care_tasks')
-      .select('*', { count: 'exact', head: true })
+      .select('plant_id')
       .eq('user_id', user!.id)
       .lt('next_due_date', today),
     supabase
@@ -80,25 +74,6 @@ export default async function DashboardPage() {
       .eq('user_id', user!.id)
       .maybeSingle(),
   ])
-
-  // Fetch weather data if location is set
-  let weatherData: { daily: WeatherDaily } | null = null
-  const cityName = userSettings?.city_name ?? null
-
-  if (userSettings?.latitude && userSettings?.longitude) {
-    try {
-      const weatherRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${userSettings.latitude}&longitude=${userSettings.longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe/Berlin&forecast_days=7`,
-        { next: { revalidate: 3600 } }
-      )
-      if (weatherRes.ok) {
-        const json = await weatherRes.json()
-        weatherData = { daily: json.daily }
-      }
-    } catch {
-      // Weather fetch failed — weatherData stays null
-    }
-  }
 
   // Show up to 3 articles: personalized first, fill with general
   const allArticles = [...(personalizedArticles ?? []), ...(generalArticles ?? [])] as FeedArticle[]
@@ -116,7 +91,8 @@ export default async function DashboardPage() {
   }))
   const totalUpcomingCount = typedTasks.length
 
-  const safeOverdueCount = overdueCount ?? 0
+  // Count distinct plants with overdue tasks (not individual task count)
+  const safeOverdueCount = new Set((overdueTasksRaw ?? []).map((t) => t.plant_id)).size
 
   return (
     <div className="space-y-8">
@@ -199,7 +175,17 @@ export default async function DashboardPage() {
       <SeasonalTipWidget />
 
       {/* Weather Widget */}
-      <WeatherWidget weather={weatherData} cityName={cityName} />
+      {userSettings?.latitude && userSettings?.longitude ? (
+        <Suspense fallback={<WeatherSkeleton />}>
+          <WeatherSection
+            latitude={userSettings.latitude}
+            longitude={userSettings.longitude}
+            cityName={userSettings.city_name ?? ''}
+          />
+        </Suspense>
+      ) : (
+        <WeatherWidget weather={null} cityName={null} />
+      )}
 
       {/* Feed Preview */}
       <section>

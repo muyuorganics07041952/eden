@@ -2,6 +2,20 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
+// Simple in-memory rate limiter: 10 requests per user per 60 seconds
+const rateLimitMap = new Map<string, number[]>()
+const RATE_LIMIT_MAX = 10
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = (rateLimitMap.get(userId) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  if (timestamps.length >= RATE_LIMIT_MAX) return true
+  timestamps.push(now)
+  rateLimitMap.set(userId, timestamps)
+  return false
+}
+
 const querySchema = z.object({
   q: z.string().min(1, 'Suchbegriff ist erforderlich').max(200),
 })
@@ -26,6 +40,13 @@ export async function GET(request: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
+  }
+
+  if (isRateLimited(user.id)) {
+    return NextResponse.json(
+      { error: 'Zu viele Anfragen. Bitte warte kurz und versuche es erneut.' },
+      { status: 429 }
+    )
   }
 
   const { searchParams } = new URL(request.url)
