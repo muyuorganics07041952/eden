@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { Newspaper, Sparkles, BookOpen, Loader2 } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Newspaper, Sparkles, BookOpen } from "lucide-react"
 import { ArticleCard } from "@/components/feed/article-card"
 import type { FeedArticle } from "@/lib/types/feed"
 

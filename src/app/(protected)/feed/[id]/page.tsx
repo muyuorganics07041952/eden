@@ -28,9 +28,10 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
   }
 
   // Fetch the article - RLS ensures the user can only see their own personalized articles or general ones
+  const DETAIL_FIELDS = "id, title, summary, content, category, reading_time, created_at"
   const { data: article, error } = await supabase
     .from("feed_articles")
-    .select("*")
+    .select(DETAIL_FIELDS)
     .eq("id", id)
     .single()
 
