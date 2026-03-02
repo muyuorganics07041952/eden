@@ -1,10 +1,28 @@
 import { createClient } from '@/lib/supabase/server'
-import { Leaf, Sprout, ClipboardList, Newspaper } from 'lucide-react'
+import { Leaf, Sprout, ClipboardList, Newspaper, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArticleCard } from '@/components/feed/article-card'
+import { UpcomingTasksSection } from '@/components/dashboard/upcoming-tasks-section'
+import { SeasonalTipWidget } from '@/components/dashboard/seasonal-tip-widget'
+import { WeatherWidget } from '@/components/dashboard/weather-widget'
 import type { FeedArticle } from '@/lib/types/feed'
+
+type TaskRow = {
+  id: string
+  name: string
+  next_due_date: string
+  plants: { name: string } | null
+}
+
+interface WeatherDaily {
+  time: string[]
+  weathercode: number[]
+  temperature_2m_max: number[]
+  temperature_2m_min: number[]
+  precipitation_probability_max: number[]
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -13,8 +31,17 @@ export default async function DashboardPage() {
   const firstName = user?.email?.split('@')[0] ?? 'Gärtner'
 
   const PREVIEW_FIELDS = 'id, title, summary, category, reading_time, created_at'
+  const today = new Date().toISOString().split('T')[0]
 
-  const [{ count: plantCount }, { count: taskCount }, { data: personalizedArticles }, { data: generalArticles }] = await Promise.all([
+  const [
+    { count: plantCount },
+    { count: taskCount },
+    { data: personalizedArticles },
+    { data: generalArticles },
+    { data: upcomingTasksRaw },
+    { count: overdueCount },
+    { data: userSettings },
+  ] = await Promise.all([
     supabase
       .from('plants')
       .select('*', { count: 'exact', head: true })
@@ -23,7 +50,7 @@ export default async function DashboardPage() {
       .from('care_tasks')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user!.id)
-      .lte('next_due_date', new Date().toISOString().split('T')[0]),
+      .lte('next_due_date', today),
     supabase
       .from('feed_articles')
       .select(PREVIEW_FIELDS)
@@ -36,13 +63,60 @@ export default async function DashboardPage() {
       .is('user_id', null)
       .order('created_at', { ascending: false })
       .limit(3),
+    supabase
+      .from('care_tasks')
+      .select('id, name, next_due_date, plants(name)')
+      .eq('user_id', user!.id)
+      .order('next_due_date', { ascending: true })
+      .limit(6),
+    supabase
+      .from('care_tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user!.id)
+      .lt('next_due_date', today),
+    supabase
+      .from('user_settings')
+      .select('city_name, latitude, longitude')
+      .eq('user_id', user!.id)
+      .maybeSingle(),
   ])
+
+  // Fetch weather data if location is set
+  let weatherData: { daily: WeatherDaily } | null = null
+  const cityName = userSettings?.city_name ?? null
+
+  if (userSettings?.latitude && userSettings?.longitude) {
+    try {
+      const weatherRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${userSettings.latitude}&longitude=${userSettings.longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe/Berlin&forecast_days=7`,
+        { next: { revalidate: 3600 } }
+      )
+      if (weatherRes.ok) {
+        const json = await weatherRes.json()
+        weatherData = { daily: json.daily }
+      }
+    } catch {
+      // Weather fetch failed — weatherData stays null
+    }
+  }
 
   // Show up to 3 articles: personalized first, fill with general
   const allArticles = [...(personalizedArticles ?? []), ...(generalArticles ?? [])] as FeedArticle[]
   const previewArticles = allArticles.slice(0, 3)
 
   const hasPlants = (plantCount ?? 0) > 0
+
+  // Prepare upcoming tasks
+  const typedTasks = (upcomingTasksRaw ?? []) as unknown as TaskRow[]
+  const upcomingTasks = typedTasks.slice(0, 5).map((t) => ({
+    id: t.id,
+    name: t.name,
+    plant_name: t.plants?.name ?? 'Unbekannte Pflanze',
+    next_due_date: t.next_due_date,
+  }))
+  const totalUpcomingCount = typedTasks.length
+
+  const safeOverdueCount = overdueCount ?? 0
 
   return (
     <div className="space-y-8">
@@ -86,6 +160,14 @@ export default async function DashboardPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 {plantCount === 1 ? 'Pflanze in deinem Garten' : 'Pflanzen in deinem Garten'}
               </p>
+              {safeOverdueCount > 0 && (
+                <Link href="/tasks" className="block">
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {safeOverdueCount} {safeOverdueCount === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'} Aufmerksamkeit
+                  </p>
+                </Link>
+              )}
               <Button asChild variant="link" className="px-0 mt-2 h-auto text-xs">
                 <Link href="/plants">Alle Pflanzen ansehen →</Link>
               </Button>
@@ -109,6 +191,15 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* Upcoming Tasks */}
+      <UpcomingTasksSection tasks={upcomingTasks} totalCount={totalUpcomingCount} />
+
+      {/* Seasonal Tip */}
+      <SeasonalTipWidget />
+
+      {/* Weather Widget */}
+      <WeatherWidget weather={weatherData} cityName={cityName} />
 
       {/* Feed Preview */}
       <section>

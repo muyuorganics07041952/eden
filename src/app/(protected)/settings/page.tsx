@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Settings } from "lucide-react"
 import { NotificationSettingsCard } from "@/components/notifications/notification-settings-card"
+import { LocationSettingsCard } from "@/components/settings/location-settings-card"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -10,13 +11,20 @@ export default async function SettingsPage() {
   if (!user) redirect('/login')
 
   // Load the most recent subscription to get the saved reminder hour
-  const { data: subscription } = await supabase
-    .from('push_subscriptions')
-    .select('reminder_hour')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const [{ data: subscription }, { data: userSettings }] = await Promise.all([
+    supabase
+      .from('push_subscriptions')
+      .select('reminder_hour')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('user_settings')
+      .select('city_name, latitude, longitude')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ])
 
   const initialReminderHour = subscription?.reminder_hour ?? 8
 
@@ -33,6 +41,12 @@ export default async function SettingsPage() {
       </div>
 
       <NotificationSettingsCard initialReminderHour={initialReminderHour} />
+
+      <LocationSettingsCard
+        initialCityName={userSettings?.city_name ?? null}
+        initialLatitude={userSettings?.latitude ?? null}
+        initialLongitude={userSettings?.longitude ?? null}
+      />
     </div>
   )
 }
