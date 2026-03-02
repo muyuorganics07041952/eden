@@ -2,44 +2,63 @@
 
 ## Status: Planned
 **Created:** 2026-02-27
-**Last Updated:** 2026-02-27
+**Last Updated:** 2026-03-02
 
 ## Dependencies
 - Requires: PROJ-1 (User Authentication)
-- Optional: PROJ-2 (Plant Management) — für personalisierte Inhalte basierend auf den Pflanzen des Nutzers
+- Optional: PROJ-2 (Plant Management) — für personalisierten Bereich "Für deine Pflanzen"
+- Optional: PROJ-4 (Care Management) — für Priorisierung von Pflanzen mit anstehenden Aufgaben
 
 ## User Stories
 - Als Nutzer möchte ich einen Feed mit interessanten Gartentipps und Pflanzeninformationen sehen.
-- Als Nutzer möchte ich Tipps sehen, die auf meine konkreten Pflanzen zugeschnitten sind.
-- Als Nutzer möchte ich einen Artikel in der App vollständig lesen können.
-- Als Nutzer möchte ich interessante Artikel bookmarken, um sie später wieder zu lesen.
+- Als Nutzer möchte ich Tipps sehen, die auf meine konkreten Pflanzen und deren anstehende Aufgaben zugeschnitten sind.
+- Als Nutzer möchte ich einen Artikel vollständig in der App lesen können.
+- Als Nutzer möchte ich, dass die Inhalte regelmäßig aktualisiert werden, damit der Feed immer frisch wirkt.
+- Als Nutzer ohne Pflanzen möchte ich trotzdem allgemeine Gartentipps sehen.
 
 ## Acceptance Criteria
-- [ ] Content Feed zeigt Artikel-Karten mit: Titel, Kurztext (max. 150 Zeichen), Kategorie-Tag, Lesezeit
-- [ ] Personalisierter Bereich "Für deine Pflanzen": Tipps basierend auf den Pflanzen des Nutzers (via OpenAI)
-- [ ] Allgemeiner Bereich "Garten-Wissen": saisonale Tipps, allgemeine Gartenratschläge
-- [ ] Inhalte werden in Supabase gecacht und nicht bei jedem Aufruf neu generiert
-- [ ] Nutzer kann auf Karte tippen → vollständiger Artikel-Ansicht (in-app)
-- [ ] Nutzer kann Artikel bookmarken/speichern
-- [ ] Gespeicherte Artikel in separater "Gespeichert"-Ansicht
-- [ ] Content wird periodisch aktualisiert (neue Inhalte mindestens wöchentlich)
+
+### Feed-Ansicht
+- [ ] Zwei Bereiche: "Für deine Pflanzen" (oben, nur mit Pflanzen) und "Garten-Wissen" (immer sichtbar)
+- [ ] Artikel-Karten zeigen: Titel, Kurztext (max. 150 Zeichen), Kategorie-Tag, geschätzte Lesezeit
 - [ ] Kategorien: Bewässerung, Düngung, Schädlinge & Krankheiten, Saisonales, Allgemein
+- [ ] Feed lädt in < 1 Sekunde (Inhalte kommen aus Supabase-Cache, nicht live generiert)
+- [ ] Wenn noch keine Inhalte vorhanden: freundlicher "Inhalte werden vorbereitet"-State (kein Fehler)
+
+### Artikel-Detail
+- [ ] Tippen auf eine Karte öffnet eine Vollansicht des Artikels (in-app, eigene Route `/feed/[id]`)
+- [ ] Artikel-Detail zeigt: Titel, vollständiger Text, Kategorie, Lesezeit, Datum
+- [ ] Zurück-Navigation zum Feed
+
+### Personalisierung (Pflanzenselektion)
+- [ ] Bis zu 5 Pflanzen werden für die Personalisierung ausgewählt
+- [ ] Priorisierung: Pflanzen mit anstehenden Aufgaben in den nächsten 14 Tagen werden bevorzugt
+- [ ] Varietät: Wenn mehr als 5 Pflanzen mit Aufgaben, wird randomisiert ausgewählt (nicht immer dieselben)
+- [ ] Falls < 5 Pflanzen mit Aufgaben: restliche Slots werden mit anderen Pflanzen (random) aufgefüllt
+
+### Content-Generierung (Cron)
+- [ ] Wöchentlicher Vercel Cron-Job generiert neue Artikel mit Google Gemini
+- [ ] Pro Lauf: 3 allgemeine Artikel (verschiedene Kategorien) + 2 personalisierte Artikel pro aktiven Nutzer (max. 50 Nutzer)
+- [ ] Inhalte werden in Supabase gecacht, nicht bei jedem Aufruf neu generiert
+- [ ] Lesezeit wird automatisch berechnet (ca. 200 Wörter/Minute)
+- [ ] Deduplizierung: Artikel mit gleichem Titel-Hash werden nicht erneut gespeichert
 
 ## Edge Cases
-- Nutzer hat keine Pflanzen: Kein personalisierter Bereich, nur allgemeiner Content; keine Fehlermeldung
-- OpenAI API nicht verfügbar: Gecachte Inhalte aus Supabase zeigen; kein Fehler für Nutzer
-- Noch keine Inhalte in der Datenbank: freundlicher Ladeindikator und/oder "Inhalte werden vorbereitet"-State
-- Langer Artikel: Scrollbares In-App-Lesefenster, keine Paginierung notwendig
-- Doppelter Content: Deduplizierung beim Speichern in Supabase (nach Titel-Hash)
-- Nutzer bookmarkt einen Artikel, der später gelöscht wird: Bookmark zeigt "Inhalt nicht mehr verfügbar"
+- Nutzer hat keine Pflanzen: Nur "Garten-Wissen"-Bereich wird gezeigt, kein personalisierter Bereich, keine Fehlermeldung
+- Gemini API nicht verfügbar: Gecachte Inhalte aus Supabase zeigen; Cron loggt Fehler still, kein Nutzer-Impact
+- Noch keine Inhalte in der Datenbank: Freundlicher leerer State "Dein Feed wird vorbereitet – schau bald wieder vorbei"
+- Cron-Lauf schlägt für einzelne Nutzer fehl: Fehler loggen, anderen Nutzern nicht beeinflussen
+- Langer Artikel: Scrollbares In-App-Lesefenster, keine Paginierung
+- Doppelter Content: Deduplizierung beim Speichern via Titel-Hash
+- Artikel wird aus DB gelöscht (manuell): Nutzer erhält 404-State auf Detail-Seite, kein Absturz
 
 ## Technical Requirements
-- Content-Generierung: OpenAI API (GPT-4o), serverseite API Route
-- Caching: Inhalte in Supabase-Tabelle gespeichert (id, title, content, category, created_at, tags)
-- Personalisierung: Pflanzenliste des Nutzers als Kontext-Prompt für OpenAI
-- Content-Refresh: Supabase Edge Function oder Cron-Job (wöchentlich)
-- Performance: Feed lädt in < 1 Sekunde (gecachte Daten aus Supabase)
-- Lesezeit-Berechnung: ca. 200 Wörter/Minute, automatisch berechnet
+- Content-Generierung: Google Gemini API (bereits im Stack vorhanden, kein neuer API-Key)
+- Caching: Zwei Tabellen in Supabase: `content_articles` (allgemein) + `personalized_articles` (nutzerspezifisch)
+- Content-Refresh: Vercel Cron Job (wöchentlich, z.B. Sonntag 06:00 UTC)
+- Performance: Feed lädt gecachte Daten aus Supabase in < 1 Sekunde
+- Lesezeit-Berechnung: automatisch serverseitig (Wortanzahl ÷ 200)
+- **Kein Bookmarking in diesem Release** — wird separat als PROJ-10 geplant falls gewünscht
 
 ---
 <!-- Sections below are added by subsequent skills -->
