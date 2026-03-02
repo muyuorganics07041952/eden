@@ -12,21 +12,24 @@ export default async function FeedPage() {
     return null
   }
 
+  // Fetch only preview fields (omit content/title_hash/plant_context for bandwidth)
+  const PREVIEW_FIELDS = "id, title, summary, category, reading_time, created_at"
+
   // Fetch personalized articles (user_id = current user)
   const { data: personalizedArticles, error: personalizedError } = await supabase
     .from("feed_articles")
-    .select("*")
+    .select(PREVIEW_FIELDS)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(10)
+    .limit(6)
 
   // Fetch general articles (user_id is null)
   const { data: generalArticles, error: generalError } = await supabase
     .from("feed_articles")
-    .select("*")
+    .select(PREVIEW_FIELDS)
     .is("user_id", null)
     .order("created_at", { ascending: false })
-    .limit(20)
+    .limit(9)
 
   const personalized = (personalizedArticles ?? []) as FeedArticle[]
   const general = (generalArticles ?? []) as FeedArticle[]
@@ -96,7 +99,7 @@ function EmptyFeedState() {
       </div>
       <h2 className="text-lg font-medium">Dein Feed wird vorbereitet</h2>
       <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        Schau bald wieder vorbei -- neue Gartentipps und personalisierte Inhalte werden regelmaessig fuer dich erstellt.
+        Schau bald wieder vorbei – neue Gartentipps und personalisierte Inhalte werden regelmäßig für dich erstellt.
       </p>
     </div>
   )
@@ -109,7 +112,7 @@ function FeedErrorState() {
         <Newspaper className="h-10 w-10 text-destructive/60" />
       </div>
       <p className="text-sm text-muted-foreground mb-2">Fehler beim Laden der Inhalte.</p>
-      <p className="text-xs text-muted-foreground">Bitte versuche es spaeter erneut.</p>
+      <p className="text-xs text-muted-foreground">Bitte versuche es später erneut.</p>
     </div>
   )
 }

@@ -34,7 +34,7 @@ export function TasksNavLink() {
       className="relative flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
     >
       <CheckSquare className="h-4 w-4" />
-      Aufgaben
+      <span className="hidden sm:inline">Aufgaben</span>
       {showBadge && (
         <span
           className="absolute -top-1 -right-2 h-2 w-2 rounded-full bg-primary"

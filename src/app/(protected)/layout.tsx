@@ -22,9 +22,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             <Leaf className="h-5 w-5 text-primary" />
             Eden
           </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/plants" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Pflanzen
+          <nav className="flex items-center gap-2 sm:gap-4">
+            <Link href="/plants" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Leaf className="sm:hidden h-4 w-4" />
+              <span className="hidden sm:inline">Pflanzen</span>
             </Link>
             <TasksNavLink />
             <Link href="/feed" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">

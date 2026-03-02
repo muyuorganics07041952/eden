@@ -170,20 +170,22 @@ async function selectPlantsForUser(
     selectedPlants = shuffleArray(selectedPlants).slice(0, 5)
   }
 
-  // If < 5, fill with other plants from the user
+  // If < 5, fill with random other plants from the user
   if (selectedPlants.length < 5) {
     const selectedIds = selectedPlants.map((p) => p.id)
+    const needed = 5 - selectedPlants.length
 
+    // Fetch more than needed so we can shuffle for true randomization
     const { data: otherPlants } = await supabase
       .from('plants')
       .select('id, name, species')
       .eq('user_id', userId)
-      .not('id', 'in', `(${selectedIds.join(',')})`)
-      .limit(5 - selectedPlants.length)
+      .not('id', 'in', `(${selectedIds.length > 0 ? selectedIds.join(',') : '00000000-0000-0000-0000-000000000000'})`)
+      .limit(50)
 
     if (otherPlants && otherPlants.length > 0) {
       const shuffled = shuffleArray(otherPlants)
-      selectedPlants.push(...shuffled.slice(0, 5 - selectedPlants.length))
+      selectedPlants.push(...shuffled.slice(0, needed))
     }
   }
 
@@ -199,7 +201,7 @@ function shuffleArray<T>(arr: T[]): T[] {
   return shuffled
 }
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   // Verify cron secret
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
@@ -282,7 +284,8 @@ export async function POST(request: Request) {
       usersProcessed,
       personalizedGenerated,
       errors: errors + 1,
-    })
+      message: 'Failed to fetch active users — personalized generation skipped',
+    }, { status: 503 })
   }
 
   // Deduplicate user IDs and limit to MAX_USERS

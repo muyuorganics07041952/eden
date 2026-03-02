@@ -21,6 +21,12 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
     return null
   }
 
+  // Validate UUID format before hitting the DB
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_REGEX.test(id)) {
+    return <ArticleNotFoundState />
+  }
+
   // Fetch the article - RLS ensures the user can only see their own personalized articles or general ones
   const { data: article, error } = await supabase
     .from("feed_articles")
@@ -46,7 +52,7 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
       <Button asChild variant="ghost" size="sm" className="mb-6 -ml-2">
         <Link href="/feed">
           <ArrowLeft className="h-4 w-4" />
-          Zurueck zum Feed
+          Zurück zum Feed
         </Link>
       </Button>
 
@@ -116,7 +122,7 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
       <Button asChild variant="outline" size="sm">
         <Link href="/feed">
           <ArrowLeft className="h-4 w-4" />
-          Zurueck zum Feed
+          Zurück zum Feed
         </Link>
       </Button>
     </article>
@@ -133,7 +139,7 @@ function ArticleNotFoundState() {
       <Button asChild variant="outline">
         <Link href="/feed">
           <ArrowLeft className="h-4 w-4" />
-          Zurueck zum Feed
+          Zurück zum Feed
         </Link>
       </Button>
     </div>
