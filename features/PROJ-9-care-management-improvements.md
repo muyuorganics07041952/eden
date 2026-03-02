@@ -1,6 +1,6 @@
 # PROJ-9: Care Management Improvements
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-03-01
 
 ## Dependencies
@@ -55,3 +55,65 @@ KI generiert 3-5 Vorschläge → werden als **Vorschau-Liste** angezeigt (noch n
 - Neuer UI-State in `CareTaskSection`: `suggestions: GeminiTask[]`
 - "Übernehmen" ruft `POST /api/plants/[id]/care` für einzelne Aufgabe auf
 - "Alle übernehmen" ruft für jede Aufgabe einzeln die bestehende API auf (oder neuer Bulk-Endpoint)
+
+---
+
+## Tech Design (Solution Architect)
+
+### Verbesserung 1: Tasks-Filter
+
+**Komponenten-Struktur:**
+```
+/tasks Seite
++-- FilterBar (NEU — shadcn Tabs)
+|   +-- "Dieser Monat" Tab (Standard)
+|   +-- "Diese Woche" Tab
+|   +-- "Heute" Tab
++-- TasksList (bestehend, bekommt gefilterte Daten)
++-- EmptyState (bestehend)
+```
+
+**Datenfluss:**
+- Filter-Auswahl in React `useState` (kein URL-Parameter) — nicht persistent nach Reload
+- Bei Filterwechsel: API-Aufruf mit `?range=today|week|month`
+- Überfällige Aufgaben immer enthalten (Query nutzt `lte(EndeDatum)`, nicht `between`)
+
+**Backend:** `GET /api/tasks/today` erhält optionalen `?range` Query-Parameter:
+- `today` → zeigt fällig bis heute (bisheriges Verhalten)
+- `week` → zeigt fällig bis Ende der aktuellen Woche
+- `month` → zeigt fällig bis Ende des aktuellen Monats (neuer Standard)
+
+### Verbesserung 2: KI-Vorschläge Vorschau
+
+**Komponenten-Struktur:**
+```
+CareTaskSection (bestehend, erweitert)
++-- Header (bestehend)
++-- SuggestionsPreview (NEU — nur nach KI-Generierung sichtbar)
+|   +-- SuggestionCard × 3-5
+|   |   +-- Aufgabenname + Häufigkeit
+|   |   +-- "Übernehmen"-Button → POST /api/plants/[id]/care
+|   |   +-- "Ablehnen"-Button (X) → aus State entfernen
+|   +-- "Alle übernehmen"-Button
++-- TasksList (bestehend)
+```
+
+**Datenfluss:**
+1. Klick auf "KI-Vorschläge" → `POST /api/plants/[id]/care/generate`
+2. API gibt Vorschläge zurück **ohne** in DB zu speichern
+3. Frontend filtert Duplikate (Namensvergleich mit vorhandenen Tasks im State)
+4. Vorschläge landen im neuen `suggestions`-State in `CareTaskSection`
+5. "Übernehmen" → `POST /api/plants/[id]/care` für einzelne Aufgabe → Task in `tasks`-State, aus `suggestions` entfernen
+6. "Ablehnen" → nur aus `suggestions`-State entfernen
+7. "Alle übernehmen" → parallele POST-Aufrufe für alle verbleibenden Vorschläge
+
+### Geänderte Dateien
+
+| Datei | Art |
+|---|---|
+| `src/app/(protected)/tasks/page.tsx` | Filter-Tabs hinzufügen |
+| `src/app/api/tasks/today/route.ts` | `?range`-Parameter unterstützen |
+| `src/components/care/care-task-section.tsx` | Suggestions-Preview-State + UI |
+| `src/app/api/plants/[id]/care/generate/route.ts` | Nicht mehr in DB speichern |
+
+**Neue Pakete:** Keine — alles mit bestehenden shadcn/ui Komponenten.
