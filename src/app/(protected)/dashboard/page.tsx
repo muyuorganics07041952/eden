@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
-import { Leaf, Sprout, ClipboardList } from 'lucide-react'
+import { Leaf, Sprout, ClipboardList, Newspaper } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { ArticleCard } from '@/components/feed/article-card'
+import type { FeedArticle } from '@/lib/types/feed'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -10,7 +12,9 @@ export default async function DashboardPage() {
 
   const firstName = user?.email?.split('@')[0] ?? 'Gärtner'
 
-  const [{ count: plantCount }, { count: taskCount }] = await Promise.all([
+  const PREVIEW_FIELDS = 'id, title, summary, category, reading_time, created_at'
+
+  const [{ count: plantCount }, { count: taskCount }, { data: personalizedArticles }, { data: generalArticles }] = await Promise.all([
     supabase
       .from('plants')
       .select('*', { count: 'exact', head: true })
@@ -20,7 +24,23 @@ export default async function DashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user!.id)
       .lte('next_due_date', new Date().toISOString().split('T')[0]),
+    supabase
+      .from('feed_articles')
+      .select(PREVIEW_FIELDS)
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false })
+      .limit(3),
+    supabase
+      .from('feed_articles')
+      .select(PREVIEW_FIELDS)
+      .is('user_id', null)
+      .order('created_at', { ascending: false })
+      .limit(3),
   ])
+
+  // Show up to 3 articles: personalized first, fill with general
+  const allArticles = [...(personalizedArticles ?? []), ...(generalArticles ?? [])] as FeedArticle[]
+  const previewArticles = allArticles.slice(0, 3)
 
   const hasPlants = (plantCount ?? 0) > 0
 
@@ -89,6 +109,33 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* Feed Preview */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Newspaper className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <h2 className="text-lg font-semibold">Garten-Wissen</h2>
+          </div>
+          <Button asChild variant="link" className="h-auto p-0 text-sm">
+            <Link href="/feed">Alle Artikel →</Link>
+          </Button>
+        </div>
+        {previewArticles.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {previewArticles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </div>
+        ) : (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+              <Newspaper className="h-8 w-8 text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground">Dein Feed wird vorbereitet – schau bald wieder vorbei.</p>
+            </CardContent>
+          </Card>
+        )}
+      </section>
     </div>
   )
 }
