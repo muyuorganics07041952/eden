@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { PlantCard } from "@/components/plants/plant-card"
 import { AddPlantSheet } from "@/components/plants/add-plant-sheet"
+import { NotificationBanner } from "@/components/notifications/notification-banner"
 import type { Plant, SortOption } from "@/lib/types/plants"
 
 export default function PlantsPage() {
@@ -53,6 +54,9 @@ export default function PlantsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Push Notification Banner — only show after loading to prevent layout shift */}
+      <NotificationBanner hasPlants={!loading && plants.length > 0} />
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Meine Pflanzen</h1>

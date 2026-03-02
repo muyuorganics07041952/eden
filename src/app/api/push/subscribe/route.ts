@@ -2,27 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { subscribeSchema, unsubscribeSchema } from '@/lib/types/push'
 
-// In-memory rate limiter: max 10 requests per user per 60 seconds
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT_MAX = 10
-const RATE_LIMIT_WINDOW_MS = 60_000
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(userId)
-
-  if (!entry || now >= entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
-    return true
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return false
-  }
-
-  entry.count++
-  return true
-}
+// Max push subscriptions per user (prevents abuse in serverless environment)
+const MAX_SUBSCRIPTIONS_PER_USER = 25
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -30,14 +11,6 @@ export async function POST(request: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
-  }
-
-  // Rate limiting
-  if (!checkRateLimit(user.id)) {
-    return NextResponse.json(
-      { error: 'Zu viele Anfragen. Bitte warte einen Moment und versuche es erneut.' },
-      { status: 429 }
-    )
   }
 
   let body: unknown
@@ -57,7 +30,7 @@ export async function POST(request: Request) {
 
   const { endpoint, p256dh, auth, timezone, reminderHour } = parsed.data
 
-  // Upsert using endpoint as unique key
+  // Check if endpoint already exists for this user (upsert path — no count check needed)
   const { data: existing } = await supabase
     .from('push_subscriptions')
     .select('id')
@@ -87,6 +60,19 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(subscription, { status: 200 })
+  }
+
+  // New endpoint — check subscription count before inserting
+  const { count } = await supabase
+    .from('push_subscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+  if ((count ?? 0) >= MAX_SUBSCRIPTIONS_PER_USER) {
+    return NextResponse.json(
+      { error: 'Maximale Anzahl an Geräten erreicht. Bitte entferne ein anderes Gerät zuerst.' },
+      { status: 429 }
+    )
   }
 
   // Create new subscription

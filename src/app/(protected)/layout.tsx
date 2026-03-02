@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/logout-button'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { Leaf, CheckSquare } from 'lucide-react'
+import { TasksNavLink } from '@/components/tasks-nav-link'
+import { Leaf, Settings } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -25,9 +26,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             <Link href="/plants" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Pflanzen
             </Link>
-            <Link href="/tasks" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <CheckSquare className="h-4 w-4" />
-              Aufgaben
+            <TasksNavLink />
+            <Link href="/settings" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Einstellungen</span>
             </Link>
           </nav>
           <div className="flex items-center gap-3">
