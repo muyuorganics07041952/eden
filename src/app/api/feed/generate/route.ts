@@ -4,6 +4,9 @@ import { createHash } from 'crypto'
 import { geminiArticleSchema, ARTICLE_CATEGORIES } from '@/lib/types/feed'
 import type { ArticleCategory } from '@/lib/types/feed'
 
+// Allow up to 5 minutes (capped by Vercel plan)
+export const maxDuration = 300
+
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 const API_TIMEOUT = 30_000 // 30 seconds (longer for article generation)
 const MAX_USERS = 50
@@ -40,6 +43,10 @@ function parseGeminiJson(result: Record<string, unknown>): unknown | null {
   } catch {
     return null
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function callGemini(prompt: string, apiKey: string): Promise<unknown | null> {
@@ -268,6 +275,8 @@ export async function GET(request: Request) {
       console.error('Error generating general article:', err)
       errors++
     }
+    // Short delay between Gemini calls to avoid rate limits
+    await sleep(3_000)
   }
 
   // --- Step 2: Generate personalized articles for active users ---
@@ -348,6 +357,8 @@ export async function GET(request: Request) {
           console.error(`Error generating personalized article for user ${userId}:`, err)
           errors++
         }
+        // Short delay between Gemini calls to avoid rate limits
+        await sleep(3_000)
       }
 
       usersProcessed++
