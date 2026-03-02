@@ -3,6 +3,10 @@
     {
       "path": "/api/push/send",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/feed/generate",
+      "schedule": "0 6 * * 0"
     }
   ]
 }
