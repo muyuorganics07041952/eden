@@ -372,4 +372,31 @@ CRON_SECRET=...                    ← schützt /api/push/send vor fremden Aufru
 - **Recommendation:** Fix BUG-2 (settings page not loading saved hour) and BUG-3 (misleading re-request permission button) before deployment. These are user-facing issues that will cause confusion. The remaining bugs can be addressed in a follow-up sprint.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-03-02
+**Deployed by:** DevOps (AI)
+
+### Pre-Deployment Checklist
+- [x] `npm run build` passes (0 TypeScript errors)
+- [x] QA completed — all 8 bugs fixed before deployment
+- [x] No Critical/High severity bugs outstanding
+- [x] All environment variables documented in `.env.local.example`
+- [x] No secrets committed to git
+- [x] Database migration applied to Supabase (`create_push_subscriptions`)
+- [x] All code committed and pushed to main
+
+### Environment Variables Required on Vercel
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Browser subscribe (public, safe to expose) |
+| `VAPID_PRIVATE_KEY` | Server-side push signing (private) |
+| `VAPID_SUBJECT` | VAPID identification email |
+| `CRON_SECRET` | Protects `/api/push/send` cron endpoint |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin client for cron (bypasses RLS) |
+
+### Post-Deployment Verification Checklist
+- [ ] `/settings` page loads and shows correct saved reminder hour
+- [ ] Push subscription toggle works (browser permission prompt fires)
+- [ ] Daily cron sends push notifications at configured hour
+- [ ] Tapping notification navigates to `/tasks`
+- [ ] No errors in Vercel function logs
