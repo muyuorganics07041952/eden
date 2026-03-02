@@ -64,7 +64,110 @@
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Wie der Content Feed funktioniert (Übersicht)
+
+```
+Wöchentlicher Cron (Sonntag 06:00 UTC)
+  |
+  +-- Gemini generiert 3 allgemeine Artikel (alle Nutzer)
+  |
+  +-- Für jeden aktiven Nutzer (max. 50):
+      +-- Wählt bis zu 5 Pflanzen aus (Priorisierung: anstehende Aufgaben)
+      +-- Gemini generiert 2 personalisierte Artikel
+      +-- Speichert alles in Supabase (mit Deduplizierung)
+
+Nutzer öffnet /feed
+  |
+  +-- Lädt sofort aus Supabase-Cache (< 1 Sekunde)
+  +-- "Für deine Pflanzen" (personalisiert, oben)
+  +-- "Garten-Wissen" (allgemein, unten)
+
+Nutzer tippt auf Artikel → /feed/[id]
+  +-- Vollständiger Artikel-Text
+  +-- Zurück-Button → /feed
+```
+
+### Component Structure
+
+```
+/feed (neue Seite)
++-- FeedPage (Server Component)
+    +-- PersonalizedSection (nur wenn Nutzer Pflanzen hat)
+    |   +-- Abschnitts-Header "Für deine Pflanzen"
+    |   +-- ArticleCard ×2
+    |       +-- Kategorie-Badge (farblich)
+    |       +-- Titel + Kurztext (max. 150 Zeichen)
+    |       +-- Lesezeit-Chip (z.B. "3 Min. Lesezeit")
+    +-- GeneralSection
+    |   +-- Abschnitts-Header "Garten-Wissen"
+    |   +-- ArticleCard ×3
+    +-- EmptyFeedState (wenn noch keine Inhalte generiert)
+        +-- Freundliche Meldung: "Dein Feed wird vorbereitet..."
+
+/feed/[id] (neue Seite)
++-- ArticleDetailPage (Server Component)
+    +-- Zurück-Button → /feed
+    +-- Artikel-Header (Titel, Kategorie-Badge, Lesezeit, Datum)
+    +-- Artikel-Body (vollständiger Text, scrollbar)
+    +-- ArticleNotFoundState (bei ungültiger ID)
+```
+
+### Data Model
+
+**Neue Tabelle: `feed_articles`** (eine Tabelle für allgemein + personalisiert)
+
+| Feld | Beschreibung |
+|------|--------------|
+| ID | Eindeutige ID |
+| User ID | `null` = allgemeiner Artikel (für alle); gesetzt = personalisierter Artikel (nur für diesen Nutzer) |
+| Title | Artikeltitel (max. 200 Zeichen) |
+| Summary | Kurztext für Karten-Ansicht (max. 150 Zeichen) |
+| Content | Vollständiger Artikeltext |
+| Category | Kategorie: Bewässerung · Düngung · Schädlinge & Krankheiten · Saisonales · Allgemein |
+| Reading Time | Lesezeit in Minuten (automatisch berechnet: Wörter ÷ 200) |
+| Title Hash | SHA-256-Hash des Titels für Deduplizierung |
+| Plant Context | Welche Pflanzen den Artikel beeinflusst haben (nur bei personalisierten) |
+| Created At | Erstellungszeitpunkt |
+
+RLS-Regeln:
+- Allgemeine Artikel (User ID = null): alle eingeloggten Nutzer können lesen
+- Personalisierte Artikel (User ID gesetzt): nur der jeweilige Nutzer kann lesen
+
+### Pflanzenselektion für Personalisierung
+
+Der Cron wählt pro Nutzer bis zu 5 Pflanzen nach dieser Logik:
+1. Finde Pflanzen mit Aufgaben fällig in den **nächsten 14 Tagen** → sortiert nach frühestem Fälligkeitsdatum
+2. Wenn > 5 solche Pflanzen → **zufällig 5** davon (für Varietät, nicht immer dieselben)
+3. Wenn < 5 → alle nehmen + **zufällig auffüllen** aus den restlichen Pflanzen des Nutzers
+
+### Tech Decisions
+
+| Entscheidung | Wahl | Warum |
+|---|---|---|
+| Eine vs. zwei Tabellen | Eine Tabelle `feed_articles` mit optionalem `user_id` | Einfachere Abfragen, weniger Wartung, gleiche Funktionalität |
+| Content-Generierung | Gemini 2.5 Flash | Bereits im Stack, kein neuer API-Key, gut für Artikel-Texte |
+| Cron | Vercel Cron (wöchentlich) | Infrastruktur bereits von PROJ-5 vorhanden, keine neuen Tools |
+| Caching | Supabase-Tabelle | Feed lädt sofort aus DB, keine Live-API-Calls beim Nutzer |
+| Deduplizierung | Titel-Hash (SHA-256) | Verhindert exakte Duplikate bei mehreren Cron-Läufen |
+| Navigation | Neuer "Feed"-Link mit Newspaper-Icon | Konsistent mit bestehendem Nav-Pattern |
+| Seiten-Typ | Server Components | Feed-Daten kommen aus DB, kein Client-State nötig → schnelleres Laden |
+
+### New API Endpoints
+
+| Endpoint | Zweck |
+|---|---|
+| `GET /api/feed` | Allgemeine + personalisierte Artikel des Nutzers laden |
+| `GET /api/feed/[id]` | Einzelnen Artikel laden |
+| `POST /api/feed/generate` | Cron-Endpunkt: Artikel generieren (gesichert via CRON_SECRET) |
+
+### New Dependencies
+
+Keine — Google Gemini und CRON_SECRET sind bereits im Stack vorhanden.
+
+### New Environment Variables
+
+Keine — `GEMINI_API_KEY` und `CRON_SECRET` existieren bereits.
 
 ## QA Test Results
 _To be added by /qa_
