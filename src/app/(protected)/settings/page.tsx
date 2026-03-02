@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Settings } from "lucide-react"
 import { NotificationSettingsCard } from "@/components/notifications/notification-settings-card"
 import { LocationSettingsCard } from "@/components/settings/location-settings-card"
+import { InstallGuideCard } from "@/components/settings/install-guide-card"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -47,6 +48,8 @@ export default async function SettingsPage() {
         initialLatitude={userSettings?.latitude ?? null}
         initialLongitude={userSettings?.longitude ?? null}
       />
+
+      <InstallGuideCard />
     </div>
   )
 }

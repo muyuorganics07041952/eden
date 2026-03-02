@@ -4,7 +4,8 @@ import { useRef, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Loader2 } from "lucide-react"
+import { Loader2, WifiOff } from "lucide-react"
+import { useOfflineStatus } from "@/hooks/use-offline-status"
 import {
   Sheet,
   SheetContent,
@@ -45,6 +46,7 @@ interface AddPlantSheetProps {
 
 export function AddPlantSheet({ open, onOpenChange, onSuccess }: AddPlantSheetProps) {
   const identifyPhotoRef = useRef<File | null>(null)
+  const isOffline = useOfflineStatus()
 
   const form = useForm<PlantFormValues>({
     resolver: zodResolver(plantFormSchema),
@@ -58,6 +60,7 @@ export function AddPlantSheet({ open, onOpenChange, onSuccess }: AddPlantSheetPr
   })
 
   const isSubmitting = form.formState.isSubmitting
+  const isDisabled = isSubmitting || isOffline
 
   const handleIdentifySelect = useCallback(
     (suggestion: IdentifySuggestion) => {
@@ -143,6 +146,13 @@ export function AddPlantSheet({ open, onOpenChange, onSuccess }: AddPlantSheetPr
         </SheetHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            {isOffline && (
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+                Offline – Pflanze anlegen nicht verfügbar.
+              </div>
+            )}
+
             {/* AI Plant Identification Section */}
             <PlantIdentifySection
               key={open ? "open" : "closed"}
@@ -229,7 +239,7 @@ export function AddPlantSheet({ open, onOpenChange, onSuccess }: AddPlantSheetPr
               >
                 Abbrechen
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isDisabled}>
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Speichern
               </Button>

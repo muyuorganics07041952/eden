@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Camera, Loader2, AlertTriangle, RefreshCw, X, Check, Leaf } from "lucide-react"
+import { Camera, Loader2, AlertTriangle, RefreshCw, X, Check, Leaf, WifiOff } from "lucide-react"
+import { useOfflineStatus } from "@/hooks/use-offline-status"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -114,6 +115,7 @@ async function compressImage(file: File): Promise<File> {
 }
 
 export function PlantIdentifySection({ onSelect, onPhotoReady, onClear }: PlantIdentifySectionProps) {
+  const isOffline = useOfflineStatus()
   const [state, setState] = useState<IdentifyState>({ status: "idle" })
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -321,15 +323,22 @@ export function PlantIdentifySection({ onSelect, onPhotoReady, onClear }: PlantI
 
       {/* Idle state: show button */}
       {state.status === "idle" && !previewUrl && (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full gap-2"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Camera className="h-4 w-4" />
-          Pflanze identifizieren
-        </Button>
+        isOffline ? (
+          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Offline – KI-Identifikation nicht verfügbar.
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Camera className="h-4 w-4" />
+            Pflanze identifizieren
+          </Button>
+        )
       )}
 
       {/* Compressing state */}

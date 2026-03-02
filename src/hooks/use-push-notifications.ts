@@ -82,9 +82,8 @@ export function usePushNotifications(): PushNotificationState {
         return false
       }
 
-      // Register the service worker
-      const registration = await navigator.serviceWorker.register("/sw.js")
-      await navigator.serviceWorker.ready
+      // Wait for the service worker (registered by next-pwa) to be ready
+      const registration = await navigator.serviceWorker.ready
 
       // Request permission if needed
       const result = await Notification.requestPermission()
