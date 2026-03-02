@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/logout-button'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { TasksNavLink } from '@/components/tasks-nav-link'
-import { Leaf, Settings } from 'lucide-react'
+import { Leaf, Settings, Newspaper } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +27,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
               Pflanzen
             </Link>
             <TasksNavLink />
+            <Link href="/feed" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Newspaper className="h-4 w-4" />
+              <span className="hidden sm:inline">Feed</span>
+            </Link>
             <Link href="/settings" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Einstellungen</span>
