@@ -9,6 +9,7 @@ import { UpcomingTasksSection } from '@/components/dashboard/upcoming-tasks-sect
 import { SeasonalTipWidget } from '@/components/dashboard/seasonal-tip-widget'
 import { WeatherWidget } from '@/components/dashboard/weather-widget'
 import { WeatherSection, WeatherSkeleton } from '@/components/dashboard/weather-section'
+import { SeasonalCover } from '@/components/dashboard/seasonal-cover'
 import type { FeedArticle } from '@/lib/types/feed'
 
 type TaskRow = {
@@ -16,6 +17,21 @@ type TaskRow = {
   name: string
   next_due_date: string
   plants: { name: string } | null
+}
+
+function getWeatherGreeting(
+  rainProb: number,
+  maxTemp: number,
+  minTemp: number,
+  code: number
+): string {
+  if (rainProb > 60) return 'Lass den Regen die Arbeit machen – kein Gießen nötig heute. 🌧️'
+  if (maxTemp > 32) return 'Sehr heiß heute – gieße morgens früh oder erst abends. 🌡️'
+  if (minTemp < 3) return 'Frost möglich heute Nacht – schütze empfindliche Pflanzen. ❄️'
+  if (maxTemp >= 15 && maxTemp <= 26 && rainProb <= 30) return 'Perfektes Gartenwetter heute – ideal für Pflanzarbeiten. ☀️'
+  if (code === 0 || code === 1) return 'Schöner Tag – eine gute Zeit für deinen Garten. 🌿'
+  if (code >= 51 && code <= 82) return 'Regnerisch heute – kein Gießen nötig, die Natur übernimmt. ☔'
+  return 'Schau nach deinen Pflanzen und genieße deinen Garten. 🌱'
 }
 
 export default async function DashboardPage() {
@@ -67,7 +83,30 @@ export default async function DashboardPage() {
       .maybeSingle(),
   ])
 
-  // Greeting: prefer display_name, fall back to email prefix
+  // Fetch today's weather for the contextual greeting (same URL as WeatherSection → Next.js deduplicates)
+  let weatherGreeting: string | null = null
+  if (userSettings?.latitude && userSettings?.longitude) {
+    try {
+      const weatherRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${userSettings.latitude}&longitude=${userSettings.longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe/Berlin&forecast_days=7`,
+        { next: { revalidate: 3600 } }
+      )
+      if (weatherRes.ok) {
+        const json = await weatherRes.json()
+        const d = json.daily
+        weatherGreeting = getWeatherGreeting(
+          d.precipitation_probability_max[0],
+          d.temperature_2m_max[0],
+          d.temperature_2m_min[0],
+          d.weathercode[0]
+        )
+      }
+    } catch {
+      // no weather greeting, fallback to generic subtitle
+    }
+  }
+
+  // Greeting name: prefer display_name, fall back to email prefix
   const displayName = userSettings?.display_name?.trim()
   const firstName = displayName || user?.email?.split('@')[0] || 'Gärtner'
 
@@ -92,14 +131,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Hallo, {firstName} 👋
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Willkommen in deinem Garten.
-        </p>
-      </div>
+      {/* Seasonal cover with contextual greeting */}
+      <SeasonalCover name={firstName} weatherSubtitle={weatherGreeting} />
 
       {!hasPlants ? (
         <Card className="border-dashed">
