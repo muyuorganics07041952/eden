@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Settings } from "lucide-react"
 import { NotificationSettingsCard } from "@/components/notifications/notification-settings-card"
 import { LocationSettingsCard } from "@/components/settings/location-settings-card"
+import { ProfileSettingsCard } from "@/components/settings/profile-settings-card"
 import { InstallGuideCard } from "@/components/settings/install-guide-card"
 
 export default async function SettingsPage() {
@@ -11,7 +12,6 @@ export default async function SettingsPage() {
 
   if (!user) redirect('/login')
 
-  // Load the most recent subscription to get the saved reminder hour
   const [{ data: subscription }, { data: userSettings }] = await Promise.all([
     supabase
       .from('push_subscriptions')
@@ -22,7 +22,7 @@ export default async function SettingsPage() {
       .maybeSingle(),
     supabase
       .from('user_settings')
-      .select('city_name, latitude, longitude')
+      .select('city_name, latitude, longitude, display_name')
       .eq('user_id', user.id)
       .maybeSingle(),
   ])
@@ -40,6 +40,8 @@ export default async function SettingsPage() {
           Verwalte deine App-Einstellungen und Benachrichtigungen.
         </p>
       </div>
+
+      <ProfileSettingsCard initialDisplayName={userSettings?.display_name ?? null} />
 
       <NotificationSettingsCard initialReminderHour={initialReminderHour} />
 

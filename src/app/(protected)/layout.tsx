@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/logout-button'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { TasksNavLink } from '@/components/tasks-nav-link'
+import { BottomNav } from '@/components/bottom-nav'
 import { Leaf, Settings, Newspaper } from 'lucide-react'
 import Link from 'next/link'
 
@@ -22,19 +23,20 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             <Leaf className="h-5 w-5 text-primary" />
             Eden
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-4">
+          {/* Desktop-only navigation */}
+          <nav className="hidden sm:flex items-center gap-4">
             <Link href="/plants" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <Leaf className="sm:hidden h-4 w-4" />
-              <span className="hidden sm:inline">Pflanzen</span>
+              <Leaf className="h-4 w-4" />
+              <span>Pflanzen</span>
             </Link>
             <TasksNavLink />
             <Link href="/feed" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <Newspaper className="h-4 w-4" />
-              <span className="hidden sm:inline">Feed</span>
+              <span>Feed</span>
             </Link>
             <Link href="/settings" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Einstellungen</span>
+              <span>Einstellungen</span>
             </Link>
           </nav>
           <div className="flex items-center gap-3">
@@ -43,11 +45,14 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      {/* pb-20 on mobile to avoid content being hidden behind the bottom nav */}
+      <main className="max-w-5xl mx-auto px-4 py-8 pb-24 sm:pb-8">
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
       </main>
+      {/* Mobile bottom navigation – hidden on sm and above */}
+      <BottomNav />
     </div>
   )
 }

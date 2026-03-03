@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { Leaf, Sprout, ClipboardList, Newspaper, AlertTriangle } from 'lucide-react'
+import { Leaf, Sprout, Newspaper, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -22,14 +22,11 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const firstName = user?.email?.split('@')[0] ?? 'Gärtner'
-
   const PREVIEW_FIELDS = 'id, title, summary, category, reading_time, created_at'
   const today = new Date().toISOString().split('T')[0]
 
   const [
     { count: plantCount },
-    { count: taskCount },
     { data: personalizedArticles },
     { data: generalArticles },
     { data: upcomingTasksRaw },
@@ -40,11 +37,6 @@ export default async function DashboardPage() {
       .from('plants')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user!.id),
-    supabase
-      .from('care_tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user!.id)
-      .lte('next_due_date', today),
     supabase
       .from('feed_articles')
       .select(PREVIEW_FIELDS)
@@ -70,10 +62,14 @@ export default async function DashboardPage() {
       .lt('next_due_date', today),
     supabase
       .from('user_settings')
-      .select('city_name, latitude, longitude')
+      .select('city_name, latitude, longitude, display_name')
       .eq('user_id', user!.id)
       .maybeSingle(),
   ])
+
+  // Greeting: prefer display_name, fall back to email prefix
+  const displayName = userSettings?.display_name?.trim()
+  const firstName = displayName || user?.email?.split('@')[0] || 'Gärtner'
 
   // Show up to 3 articles: personalized first, fill with general
   const allArticles = [...(personalizedArticles ?? []), ...(generalArticles ?? [])] as FeedArticle[]
@@ -91,7 +87,7 @@ export default async function DashboardPage() {
   }))
   const totalUpcomingCount = typedTasks.length
 
-  // Count distinct plants with overdue tasks (not individual task count)
+  // Count distinct plants with overdue tasks
   const safeOverdueCount = new Set((overdueTasksRaw ?? []).map((t) => t.plant_id)).size
 
   return (
@@ -125,47 +121,29 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Meine Pflanzen</CardTitle>
-              <Sprout className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{plantCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {plantCount === 1 ? 'Pflanze in deinem Garten' : 'Pflanzen in deinem Garten'}
-              </p>
-              {safeOverdueCount > 0 && (
-                <Link href="/tasks" className="block">
-                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {safeOverdueCount} {safeOverdueCount === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'} Aufmerksamkeit
-                  </p>
-                </Link>
-              )}
-              <Button asChild variant="link" className="px-0 mt-2 h-auto text-xs">
-                <Link href="/plants">Alle Pflanzen ansehen →</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Heute fällige Aufgaben</CardTitle>
-              <ClipboardList className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{taskCount ?? 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {(taskCount ?? 0) === 0 ? 'Alles erledigt!' : (taskCount === 1 ? 'Aufgabe fällig' : 'Aufgaben fällig')}
-              </p>
-              <Button asChild variant="link" className="px-0 mt-2 h-auto text-xs">
-                <Link href="/tasks">Aufgaben ansehen →</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Meine Pflanzen</CardTitle>
+            <Sprout className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{plantCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {plantCount === 1 ? 'Pflanze in deinem Garten' : 'Pflanzen in deinem Garten'}
+            </p>
+            {safeOverdueCount > 0 && (
+              <Link href="/tasks" className="block">
+                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {safeOverdueCount} {safeOverdueCount === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'} Aufmerksamkeit
+                </p>
+              </Link>
+            )}
+            <Button asChild variant="link" className="px-0 mt-2 h-auto text-xs">
+              <Link href="/plants">Alle Pflanzen ansehen →</Link>
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Upcoming Tasks */}
