@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,12 +30,21 @@ import {
 import { FREQUENCY_LABELS } from "@/lib/types/care"
 import type { TodayCareTask, CareFrequency } from "@/lib/types/care"
 
-function getDueStatus(nextDueDate: string): "overdue" | "today" {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+type FilterRange = "month" | "week" | "today"
+
+const FILTER_LABELS: Record<FilterRange, string> = {
+  month: "Dieser Monat",
+  week: "Diese Woche",
+  today: "Heute",
+}
+
+function getDueStatus(nextDueDate: string): "overdue" | "today" | "upcoming" {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
   const due = new Date(nextDueDate + "T00:00:00")
-  if (due < today) return "overdue"
-  return "today"
+  if (due < now) return "overdue"
+  if (due.getTime() === now.getTime()) return "today"
+  return "upcoming"
 }
 
 function formatDate(dateStr: string): string {
@@ -51,12 +61,13 @@ export default function TasksPage() {
   const [error, setError] = useState<string | null>(null)
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
   const [overdueTask, setOverdueTask] = useState<TodayCareTask | null>(null)
+  const [range, setRange] = useState<FilterRange>("month")
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (filterRange: FilterRange) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/tasks/today")
+      const res = await fetch(`/api/tasks/today?range=${filterRange}`)
       if (!res.ok) throw new Error("Fehler beim Laden")
       const data = await res.json()
       setTasks(Array.isArray(data) ? data : [])
@@ -68,8 +79,12 @@ export default function TasksPage() {
   }, [])
 
   useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+    fetchTasks(range)
+  }, [fetchTasks, range])
+
+  function handleRangeChange(value: string) {
+    setRange(value as FilterRange)
+  }
 
   function handleCompleteClick(task: TodayCareTask) {
     const status = getDueStatus(task.next_due_date)
@@ -90,7 +105,6 @@ export default function TasksPage() {
         body: JSON.stringify({ action: "complete", mode }),
       })
       if (!res.ok) throw new Error("Fehler")
-      // Remove from the list (no longer due today)
       setTasks((prev) => prev.filter((t) => t.id !== task.id))
     } catch {
       // Keep the task in the list on error
@@ -137,7 +151,7 @@ export default function TasksPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
             <CheckSquare className="h-6 w-6 text-primary" />
-            Heute fällige Aufgaben
+            Fällige Aufgaben
           </h1>
           {!loading && !error && tasks.length > 0 && (
             <p className="text-sm text-muted-foreground mt-1">
@@ -152,6 +166,15 @@ export default function TasksPage() {
         </div>
       </div>
 
+      {/* Filter Tabs */}
+      <Tabs value={range} onValueChange={handleRangeChange}>
+        <TabsList aria-label="Zeitraum filtern">
+          <TabsTrigger value="month">{FILTER_LABELS.month}</TabsTrigger>
+          <TabsTrigger value="week">{FILTER_LABELS.week}</TabsTrigger>
+          <TabsTrigger value="today">{FILTER_LABELS.today}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Content */}
       {loading ? (
         <TasksPageSkeleton />
@@ -161,12 +184,12 @@ export default function TasksPage() {
             <AlertCircle className="h-10 w-10 text-destructive/60" />
           </div>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <Button variant="outline" onClick={fetchTasks}>
+          <Button variant="outline" onClick={() => fetchTasks(range)}>
             Erneut versuchen
           </Button>
         </div>
       ) : tasks.length === 0 ? (
-        <AllDoneState onGoToPlants={() => router.push("/plants")} />
+        <AllDoneState range={range} onGoToPlants={() => router.push("/plants")} />
       ) : (
         <div className="space-y-6">
           {sortedGroups.map((group) => (
@@ -191,7 +214,9 @@ export default function TasksPage() {
                       className={
                         status === "overdue"
                           ? "border-destructive/50 bg-destructive/5"
-                          : "border-primary/50 bg-primary/5"
+                          : status === "today"
+                          ? "border-primary/50 bg-primary/5"
+                          : ""
                       }
                     >
                       <CardContent className="flex items-center gap-3 p-4">
@@ -225,6 +250,9 @@ export default function TasksPage() {
                                 <AlertTriangle className="h-3 w-3 mr-1" />
                                 Seit {formatDate(task.next_due_date)}
                               </Badge>
+                            )}
+                            {status === "upcoming" && (
+                              <span>Fällig: {formatDate(task.next_due_date)}</span>
                             )}
                           </div>
                           {task.notes && (
@@ -274,7 +302,8 @@ export default function TasksPage() {
   )
 }
 
-function AllDoneState({ onGoToPlants }: { onGoToPlants: () => void }) {
+function AllDoneState({ range, onGoToPlants }: { range: FilterRange; onGoToPlants: () => void }) {
+  const rangeLabel = FILTER_LABELS[range].toLowerCase()
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="bg-primary/10 p-4 rounded-full mb-4">
@@ -282,7 +311,7 @@ function AllDoneState({ onGoToPlants }: { onGoToPlants: () => void }) {
       </div>
       <h2 className="text-lg font-medium">Alles erledigt!</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-4 max-w-xs">
-        Keine Aufgaben fällig. Entspann dich oder schau bei deinen Pflanzen vorbei.
+        Keine Aufgaben für &quot;{rangeLabel}&quot; fällig. Entspann dich oder schau bei deinen Pflanzen vorbei.
       </p>
       <Button variant="outline" onClick={onGoToPlants}>
         <Leaf className="h-4 w-4" />

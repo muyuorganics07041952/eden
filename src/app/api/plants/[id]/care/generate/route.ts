@@ -234,21 +234,12 @@ Jede Aufgabe hat folgende Felder:
       )
     }
 
-    // Bulk insert
-    const { data: createdTasks, error: insertError } = await supabase
-      .from('care_tasks')
-      .insert(tasksToInsert)
-      .select()
+    // Return suggestions without saving to DB.
+    // The frontend will display them as a preview and let the user
+    // accept/reject each one individually.
+    const suggestions = tasksToInsert.map(({ plant_id: _pid, user_id: _uid, ...rest }) => rest)
 
-    if (insertError) {
-      console.error('Error inserting AI-generated care tasks:', insertError)
-      return NextResponse.json(
-        { error: 'Fehler beim Speichern der Pflegeaufgaben.' },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json(createdTasks, { status: 201 })
+    return NextResponse.json(suggestions, { status: 200 })
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       return NextResponse.json(

@@ -1,7 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
+function getEndOfWeek(): string {
+  const now = new Date()
+  const dayOfWeek = now.getDay() // 0=Sun, 1=Mon, ...
+  const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek
+  const endOfWeek = new Date(now)
+  endOfWeek.setDate(now.getDate() + daysUntilSunday)
+  return endOfWeek.toISOString().split('T')[0]
+}
+
+function getEndOfMonth(): string {
+  const now = new Date()
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return endOfMonth.toISOString().split('T')[0]
+}
+
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -9,7 +24,22 @@ export async function GET() {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
   }
 
+  const range = request.nextUrl.searchParams.get('range') || 'month'
   const today = new Date().toISOString().split('T')[0]
+
+  let endDate: string
+  switch (range) {
+    case 'today':
+      endDate = today
+      break
+    case 'week':
+      endDate = getEndOfWeek()
+      break
+    case 'month':
+    default:
+      endDate = getEndOfMonth()
+      break
+  }
 
   const { data: tasks, error } = await supabase
     .from('care_tasks')
@@ -26,7 +56,7 @@ export async function GET() {
       plants!inner ( name )
     `)
     .eq('user_id', user.id)
-    .lte('next_due_date', today)
+    .lte('next_due_date', endDate)
     .order('next_due_date', { ascending: true })
     .limit(200)
 

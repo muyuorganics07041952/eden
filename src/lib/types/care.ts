@@ -50,6 +50,15 @@ export const FREQUENCY_LABELS: Record<CareFrequency, string> = {
   custom: 'Benutzerdefiniert',
 }
 
+/** A suggestion from the AI that has not yet been saved to the database */
+export type CareSuggestion = {
+  name: string
+  frequency: CareFrequency
+  interval_days: number
+  next_due_date: string // ISO date YYYY-MM-DD
+  notes: string | null
+}
+
 /** All frequency options for select menus */
 export const FREQUENCY_OPTIONS: { value: CareFrequency; label: string }[] = [
   { value: 'daily', label: 'Täglich' },

@@ -1,13 +1,26 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Sparkles, Loader2, AlertCircle, PartyPopper } from "lucide-react"
+import {
+  Plus,
+  Sparkles,
+  Loader2,
+  AlertCircle,
+  PartyPopper,
+  Check,
+  X,
+  CheckCheck,
+  Clock,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { CareTaskCard } from "@/components/care/care-task-card"
 import { CareTaskSheet } from "@/components/care/care-task-sheet"
-import type { CareTask } from "@/lib/types/care"
+import { FREQUENCY_LABELS } from "@/lib/types/care"
+import type { CareTask, CareSuggestion, CareFrequency } from "@/lib/types/care"
 
 interface CareTaskSectionProps {
   plantId: string
@@ -19,6 +32,12 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+
+  // Suggestions preview state
+  const [suggestions, setSuggestions] = useState<CareSuggestion[]>([])
+  const [acceptingNames, setAcceptingNames] = useState<Set<string>>(new Set())
+  const [acceptingAll, setAcceptingAll] = useState(false)
+  const [acceptErrors, setAcceptErrors] = useState<Map<string, string>>(new Map())
 
   // Sheet state
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -56,8 +75,23 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
           data.error || "Fehler bei der KI-Generierung."
         )
       }
-      const newTasks: CareTask[] = await res.json()
-      setTasks((prev) => [...prev, ...newTasks])
+      const newSuggestions: CareSuggestion[] = await res.json()
+
+      // Filter out duplicates (by name, case-insensitive)
+      const existingNames = new Set(
+        tasks.map((t) => t.name.toLowerCase())
+      )
+      const filtered = newSuggestions.filter(
+        (s) => !existingNames.has(s.name.toLowerCase())
+      )
+
+      if (filtered.length === 0) {
+        setGenerateError(
+          "Alle KI-Vorschläge existieren bereits als Aufgaben."
+        )
+      } else {
+        setSuggestions(filtered)
+      }
     } catch (err) {
       setGenerateError(
         err instanceof Error ? err.message : "Fehler bei der KI-Generierung."
@@ -65,6 +99,88 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
     } finally {
       setGenerating(false)
     }
+  }
+
+  async function handleAcceptSuggestion(suggestion: CareSuggestion) {
+    setAcceptingNames((prev) => new Set(prev).add(suggestion.name))
+    setAcceptErrors((prev) => {
+      const next = new Map(prev)
+      next.delete(suggestion.name)
+      return next
+    })
+    try {
+      const res = await fetch(`/api/plants/${plantId}/care`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: suggestion.name,
+          frequency: suggestion.frequency,
+          interval_days: suggestion.interval_days,
+          next_due_date: suggestion.next_due_date,
+          notes: suggestion.notes,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Fehler beim Speichern")
+      }
+      const savedTask: CareTask = await res.json()
+      setTasks((prev) => [...prev, savedTask])
+      setSuggestions((prev) => prev.filter((s) => s.name !== suggestion.name))
+    } catch (err) {
+      setAcceptErrors((prev) => {
+        const next = new Map(prev)
+        next.set(suggestion.name, err instanceof Error ? err.message : "Fehler beim Speichern")
+        return next
+      })
+    } finally {
+      setAcceptingNames((prev) => {
+        const next = new Set(prev)
+        next.delete(suggestion.name)
+        return next
+      })
+    }
+  }
+
+  function handleRejectSuggestion(suggestion: CareSuggestion) {
+    setSuggestions((prev) => prev.filter((s) => s.name !== suggestion.name))
+    setAcceptErrors((prev) => {
+      const next = new Map(prev)
+      next.delete(suggestion.name)
+      return next
+    })
+  }
+
+  async function handleAcceptAll() {
+    setAcceptingAll(true)
+    const remaining = [...suggestions]
+    const accepted: CareTask[] = []
+    const failed: CareSuggestion[] = []
+
+    for (const suggestion of remaining) {
+      try {
+        const res = await fetch(`/api/plants/${plantId}/care`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: suggestion.name,
+            frequency: suggestion.frequency,
+            interval_days: suggestion.interval_days,
+            next_due_date: suggestion.next_due_date,
+            notes: suggestion.notes,
+          }),
+        })
+        if (!res.ok) throw new Error("Fehler")
+        const savedTask: CareTask = await res.json()
+        accepted.push(savedTask)
+      } catch {
+        failed.push(suggestion)
+      }
+    }
+
+    setTasks((prev) => [...prev, ...accepted])
+    setSuggestions(failed)
+    setAcceptingAll(false)
   }
 
   function handleOpenAdd() {
@@ -115,7 +231,12 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Pflegeaufgaben</h2>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleGenerate} disabled={generating}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerate}
+            disabled={generating || acceptingAll}
+          >
             {generating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -134,10 +255,26 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
 
       {/* Generate error */}
       {generateError && (
-        <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md" role="alert">
+        <div
+          className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md"
+          role="alert"
+        >
           <AlertCircle className="h-4 w-4 shrink-0" />
           <p>{generateError}</p>
         </div>
+      )}
+
+      {/* Suggestions Preview */}
+      {suggestions.length > 0 && (
+        <SuggestionsPreview
+          suggestions={suggestions}
+          acceptingNames={acceptingNames}
+          acceptingAll={acceptingAll}
+          acceptErrors={acceptErrors}
+          onAccept={handleAcceptSuggestion}
+          onReject={handleRejectSuggestion}
+          onAcceptAll={handleAcceptAll}
+        />
       )}
 
       {/* Content */}
@@ -153,7 +290,7 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
             Erneut versuchen
           </Button>
         </div>
-      ) : tasks.length === 0 ? (
+      ) : tasks.length === 0 && suggestions.length === 0 ? (
         <EmptyTasksState onAdd={handleOpenAdd} onGenerate={handleGenerate} generating={generating} />
       ) : (
         <div className="space-y-2">
@@ -178,6 +315,121 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
         task={editingTask}
         onSuccess={handleTaskSaved}
       />
+    </div>
+  )
+}
+
+/** Preview list for AI-generated suggestions before they are saved */
+function SuggestionsPreview({
+  suggestions,
+  acceptingNames,
+  acceptingAll,
+  acceptErrors,
+  onAccept,
+  onReject,
+  onAcceptAll,
+}: {
+  suggestions: CareSuggestion[]
+  acceptingNames: Set<string>
+  acceptingAll: boolean
+  acceptErrors: Map<string, string>
+  onAccept: (suggestion: CareSuggestion) => void
+  onReject: (suggestion: CareSuggestion) => void
+  onAcceptAll: () => void
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-medium">
+            KI-Vorschläge ({suggestions.length})
+          </h3>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onAcceptAll}
+          disabled={acceptingAll}
+          aria-label="Alle Vorschläge übernehmen"
+        >
+          {acceptingAll ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCheck className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">
+            {acceptingAll ? "Wird übernommen..." : "Alle übernehmen"}
+          </span>
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {suggestions.map((suggestion) => {
+          const isAccepting = acceptingNames.has(suggestion.name)
+          const acceptError = acceptErrors.get(suggestion.name)
+          return (
+            <Card
+              key={suggestion.name}
+              className={`border-primary/30 bg-primary/5 ${acceptError ? "border-destructive/50 bg-destructive/5" : ""}`}
+            >
+              <CardContent className="flex items-start gap-3 p-3">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-sm">{suggestion.name}</h4>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {FREQUENCY_LABELS[suggestion.frequency as CareFrequency]}
+                      {suggestion.frequency === "custom" &&
+                        ` (${suggestion.interval_days} Tage)`}
+                    </span>
+                    {suggestion.notes && (
+                      <span className="line-clamp-1">{suggestion.notes}</span>
+                    )}
+                  </div>
+                  {acceptError && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 shrink-0" />
+                      {acceptError} – erneut versuchen
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className={`h-8 w-8 rounded-full ${acceptError ? "border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" : "border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"}`}
+                    onClick={() => onAccept(suggestion)}
+                    disabled={isAccepting || acceptingAll}
+                    aria-label={`${suggestion.name} übernehmen`}
+                  >
+                    {isAccepting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
+                    onClick={() => onReject(suggestion)}
+                    disabled={isAccepting || acceptingAll}
+                    aria-label={`${suggestion.name} ablehnen`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Vorschläge werden erst nach Übernahme gespeichert.
+      </p>
     </div>
   )
 }
