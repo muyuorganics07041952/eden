@@ -157,7 +157,7 @@ export default function TasksPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {tasks.length} Aufgabe{tasks.length !== 1 ? "n" : ""} fällig
               {overdueCount > 0 && (
-                <span className="text-destructive">
+                <span className="text-orange-600">
                   {" "}({overdueCount} überfällig)
                 </span>
               )}
@@ -191,83 +191,58 @@ export default function TasksPage() {
       ) : tasks.length === 0 ? (
         <AllDoneState range={range} onGoToPlants={() => router.push("/plants")} />
       ) : (
-        <div className="space-y-6">
-          {sortedGroups.map((group) => (
-            <div key={group.plantId} className="space-y-2">
-              {/* Plant header */}
-              <button
-                onClick={() => router.push(`/plants/${group.plantId}`)}
-                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Leaf className="h-4 w-4" />
-                {group.plantName}
-              </button>
-
-              {/* Tasks */}
-              <div className="space-y-2">
-                {group.tasks.map((task) => {
-                  const status = getDueStatus(task.next_due_date)
-                  const isCompleting = completingIds.has(task.id)
-                  return (
-                    <Card
-                      key={task.id}
-                      className={
-                        status === "overdue"
-                          ? "border-destructive/50 bg-destructive/5"
-                          : status === "today"
-                          ? "border-primary/50 bg-primary/5"
-                          : ""
-                      }
-                    >
-                      <CardContent className="flex items-center gap-3 p-4">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 rounded-full"
-                          onClick={() => handleCompleteClick(task)}
-                          disabled={isCompleting}
-                          aria-label={`${task.name} als erledigt markieren`}
-                        >
-                          {isCompleting ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Check className="h-4 w-4" />
-                          )}
-                        </Button>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-sm">{task.name}</h3>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {FREQUENCY_LABELS[task.frequency as CareFrequency]}
-                            </span>
-                            {status === "overdue" && (
-                              <Badge
-                                variant="destructive"
-                                className="text-xs px-1.5 py-0"
-                              >
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Seit {formatDate(task.next_due_date)}
-                              </Badge>
-                            )}
-                            {status === "upcoming" && (
-                              <span>Fällig: {formatDate(task.next_due_date)}</span>
-                            )}
-                          </div>
-                          {task.notes && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                              {task.notes}
-                            </p>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+        <div className="space-y-8">
+          {/* Overdue section */}
+          {(() => {
+            const overdueGroups = sortedGroups.filter((g) =>
+              g.tasks.some((t) => getDueStatus(t.next_due_date) === "overdue")
+            )
+            const upcomingGroups = sortedGroups.filter((g) =>
+              g.tasks.every((t) => getDueStatus(t.next_due_date) !== "overdue")
+            )
+            return (
+              <>
+                {overdueGroups.length > 0 && (
+                  <div className="space-y-4">
+                    <p className="text-sm font-medium text-orange-700">
+                      Diese Pflanzen brauchen heute deine Liebe
+                    </p>
+                    <div className="space-y-6">
+                      {overdueGroups.map((group) => (
+                        <PlantGroup
+                          key={group.plantId}
+                          group={group}
+                          completingIds={completingIds}
+                          onPlantClick={() => router.push(`/plants/${group.plantId}`)}
+                          onCompleteClick={handleCompleteClick}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {upcomingGroups.length > 0 && (
+                  <div className="space-y-4">
+                    {overdueGroups.length > 0 && (
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Anstehende Aufgaben
+                      </p>
+                    )}
+                    <div className="space-y-6">
+                      {upcomingGroups.map((group) => (
+                        <PlantGroup
+                          key={group.plantId}
+                          group={group}
+                          completingIds={completingIds}
+                          onPlantClick={() => router.push(`/plants/${group.plantId}`)}
+                          onCompleteClick={handleCompleteClick}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 
@@ -298,6 +273,88 @@ export default function TasksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  )
+}
+
+function PlantGroup({
+  group,
+  completingIds,
+  onPlantClick,
+  onCompleteClick,
+}: {
+  group: { plantId: string; plantName: string; tasks: TodayCareTask[] }
+  completingIds: Set<string>
+  onPlantClick: () => void
+  onCompleteClick: (task: TodayCareTask) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={onPlantClick}
+        className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Leaf className="h-4 w-4" />
+        {group.plantName}
+      </button>
+      <div className="space-y-2">
+        {group.tasks.map((task) => {
+          const status = getDueStatus(task.next_due_date)
+          const isCompleting = completingIds.has(task.id)
+          return (
+            <Card
+              key={task.id}
+              className={
+                status === "overdue"
+                  ? "border-orange-200/70 bg-orange-50/50"
+                  : status === "today"
+                  ? "border-primary/50 bg-primary/5"
+                  : ""
+              }
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 rounded-full"
+                  onClick={() => onCompleteClick(task)}
+                  disabled={isCompleting}
+                  aria-label={`${task.name} als erledigt markieren`}
+                >
+                  {isCompleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                </Button>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm">{task.name}</h3>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {FREQUENCY_LABELS[task.frequency as CareFrequency]}
+                    </span>
+                    {status === "overdue" && (
+                      <Badge className="text-xs px-1.5 py-0 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Seit {formatDate(task.next_due_date)}
+                      </Badge>
+                    )}
+                    {status === "upcoming" && (
+                      <span>Fällig: {formatDate(task.next_due_date)}</span>
+                    )}
+                  </div>
+                  {task.notes && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                      {task.notes}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
     </div>
   )
 }

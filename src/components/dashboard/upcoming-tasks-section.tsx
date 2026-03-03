@@ -46,7 +46,7 @@ export function UpcomingTasksSection({ tasks, totalCount }: UpcomingTasksSection
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       {isOverdue && (
-                        <Badge variant="destructive" className="shrink-0 text-xs">
+                        <Badge className="shrink-0 text-xs bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">
                           Überfällig
                         </Badge>
                       )}
