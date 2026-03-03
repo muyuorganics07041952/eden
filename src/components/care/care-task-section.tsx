@@ -15,8 +15,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { CareTaskCard } from "@/components/care/care-task-card"
 import { CareTaskSheet } from "@/components/care/care-task-sheet"
 import { FREQUENCY_LABELS } from "@/lib/types/care"
@@ -228,6 +226,7 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
     <div className="space-y-4">
       <Separator />
 
+      {/* Section header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Pflegeaufgaben</h2>
         <div className="flex items-center gap-2">
@@ -264,20 +263,110 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
         </div>
       )}
 
-      {/* Suggestions Preview */}
+      {/* ── KI-Vorschläge (Suggestions) ── */}
       {suggestions.length > 0 && (
-        <SuggestionsPreview
-          suggestions={suggestions}
-          acceptingNames={acceptingNames}
-          acceptingAll={acceptingAll}
-          acceptErrors={acceptErrors}
-          onAccept={handleAcceptSuggestion}
-          onReject={handleRejectSuggestion}
-          onAcceptAll={handleAcceptAll}
-        />
+        <div className="rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-primary">
+                KI-Vorschläge ({suggestions.length})
+              </h3>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAcceptAll}
+              disabled={acceptingAll}
+              aria-label="Alle Vorschläge übernehmen"
+            >
+              {acceptingAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">
+                {acceptingAll ? "Wird übernommen..." : "Alle übernehmen"}
+              </span>
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Hake eine Aufgabe an um sie zu übernehmen, oder lehne sie mit ✕ ab.
+          </p>
+
+          <div className="space-y-2">
+            {suggestions.map((suggestion) => {
+              const isAccepting = acceptingNames.has(suggestion.name)
+              const acceptError = acceptErrors.get(suggestion.name)
+              return (
+                <div
+                  key={suggestion.name}
+                  className={`flex items-start gap-3 rounded-md border bg-background p-3 ${
+                    acceptError ? "border-destructive/50" : "border-border"
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{suggestion.name}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {FREQUENCY_LABELS[suggestion.frequency as CareFrequency]}
+                        {suggestion.frequency === "custom" &&
+                          ` (${suggestion.interval_days} Tage)`}
+                      </span>
+                      {suggestion.notes && (
+                        <span className="line-clamp-1">{suggestion.notes}</span>
+                      )}
+                    </div>
+                    {acceptError && (
+                      <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 shrink-0" />
+                        {acceptError} – erneut versuchen
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-full border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                      onClick={() => handleAcceptSuggestion(suggestion)}
+                      disabled={isAccepting || acceptingAll}
+                      aria-label={`${suggestion.name} übernehmen`}
+                    >
+                      {isAccepting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRejectSuggestion(suggestion)}
+                      disabled={isAccepting || acceptingAll}
+                      aria-label={`${suggestion.name} ablehnen`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
 
-      {/* Content */}
+      {/* ── Meine Aufgaben (Tasks) ── */}
+      {suggestions.length > 0 && (
+        <div className="flex items-center gap-2 pt-1">
+          <h3 className="text-sm font-semibold text-muted-foreground">Meine Aufgaben</h3>
+          <Separator className="flex-1" />
+        </div>
+      )}
+
       {loading ? (
         <CareTaskSkeleton />
       ) : error ? (
@@ -292,6 +381,10 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
         </div>
       ) : tasks.length === 0 && suggestions.length === 0 ? (
         <EmptyTasksState onAdd={handleOpenAdd} onGenerate={handleGenerate} generating={generating} />
+      ) : tasks.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          Noch keine Aufgaben – übernimm Vorschläge oder erstelle sie manuell.
+        </p>
       ) : (
         <div className="space-y-2">
           {tasks.map((task) => (
@@ -319,120 +412,6 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
   )
 }
 
-/** Preview list for AI-generated suggestions before they are saved */
-function SuggestionsPreview({
-  suggestions,
-  acceptingNames,
-  acceptingAll,
-  acceptErrors,
-  onAccept,
-  onReject,
-  onAcceptAll,
-}: {
-  suggestions: CareSuggestion[]
-  acceptingNames: Set<string>
-  acceptingAll: boolean
-  acceptErrors: Map<string, string>
-  onAccept: (suggestion: CareSuggestion) => void
-  onReject: (suggestion: CareSuggestion) => void
-  onAcceptAll: () => void
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-medium">
-            KI-Vorschläge ({suggestions.length})
-          </h3>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAcceptAll}
-          disabled={acceptingAll}
-          aria-label="Alle Vorschläge übernehmen"
-        >
-          {acceptingAll ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <CheckCheck className="h-4 w-4" />
-          )}
-          <span className="hidden sm:inline">
-            {acceptingAll ? "Wird übernommen..." : "Alle übernehmen"}
-          </span>
-        </Button>
-      </div>
-
-      <div className="space-y-2">
-        {suggestions.map((suggestion) => {
-          const isAccepting = acceptingNames.has(suggestion.name)
-          const acceptError = acceptErrors.get(suggestion.name)
-          return (
-            <Card
-              key={suggestion.name}
-              className={`border-primary/30 bg-primary/5 ${acceptError ? "border-destructive/50 bg-destructive/5" : ""}`}
-            >
-              <CardContent className="flex items-start gap-3 p-3">
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm">{suggestion.name}</h4>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {FREQUENCY_LABELS[suggestion.frequency as CareFrequency]}
-                      {suggestion.frequency === "custom" &&
-                        ` (${suggestion.interval_days} Tage)`}
-                    </span>
-                    {suggestion.notes && (
-                      <span className="line-clamp-1">{suggestion.notes}</span>
-                    )}
-                  </div>
-                  {acceptError && (
-                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 shrink-0" />
-                      {acceptError} – erneut versuchen
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className={`h-8 w-8 rounded-full ${acceptError ? "border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" : "border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"}`}
-                    onClick={() => onAccept(suggestion)}
-                    disabled={isAccepting || acceptingAll}
-                    aria-label={`${suggestion.name} übernehmen`}
-                  >
-                    {isAccepting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
-                    onClick={() => onReject(suggestion)}
-                    disabled={isAccepting || acceptingAll}
-                    aria-label={`${suggestion.name} ablehnen`}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        Vorschläge werden erst nach Übernahme gespeichert.
-      </p>
-    </div>
-  )
-}
 
 function EmptyTasksState({
   onAdd,
