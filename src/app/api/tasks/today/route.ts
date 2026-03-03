@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const rangeSchema = z.enum(['today', 'week', 'month'])
 
 function getEndOfWeek(): string {
   const now = new Date()
@@ -24,7 +27,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
   }
 
-  const range = request.nextUrl.searchParams.get('range') || 'month'
+  const rawRange = request.nextUrl.searchParams.get('range') || 'month'
+  const parsedRange = rangeSchema.safeParse(rawRange)
+  if (!parsedRange.success) {
+    return NextResponse.json(
+      { error: 'Ungültiger range-Parameter. Erlaubt: today, week, month.' },
+      { status: 422 }
+    )
+  }
+  const range = parsedRange.data
   const today = new Date().toISOString().split('T')[0]
 
   let endDate: string

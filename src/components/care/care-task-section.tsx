@@ -64,29 +64,36 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
     setGenerating(true)
     setGenerateError(null)
     try {
-      const res = await fetch(`/api/plants/${plantId}/care/generate`, {
-        method: "POST",
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(
-          data.error || "Fehler bei der KI-Generierung."
-        )
-      }
-      const newSuggestions: CareSuggestion[] = await res.json()
+      // Run task refresh and AI generation in parallel so the duplicate
+      // check always uses fresh server data (BUG-2 fix)
+      const [freshTasksRes, genRes] = await Promise.all([
+        fetch(`/api/plants/${plantId}/care`),
+        fetch(`/api/plants/${plantId}/care/generate`, { method: "POST" }),
+      ])
 
-      // Filter out duplicates (by name, case-insensitive)
-      const existingNames = new Set(
-        tasks.map((t) => t.name.toLowerCase())
-      )
+      if (!genRes.ok) {
+        const data = await genRes.json().catch(() => ({}))
+        throw new Error(data.error || "Fehler bei der KI-Generierung.")
+      }
+
+      const newSuggestions: CareSuggestion[] = await genRes.json()
+
+      // Use fresh task list for duplicate check; fall back to current state
+      let existingNames = new Set(tasks.map((t) => t.name.toLowerCase()))
+      if (freshTasksRes.ok) {
+        const freshTasks: CareTask[] = await freshTasksRes.json()
+        if (Array.isArray(freshTasks)) {
+          setTasks(freshTasks)
+          existingNames = new Set(freshTasks.map((t) => t.name.toLowerCase()))
+        }
+      }
+
       const filtered = newSuggestions.filter(
         (s) => !existingNames.has(s.name.toLowerCase())
       )
 
       if (filtered.length === 0) {
-        setGenerateError(
-          "Alle KI-Vorschläge existieren bereits als Aufgaben."
-        )
+        setGenerateError("Alle KI-Vorschläge existieren bereits als Aufgaben.")
       } else {
         setSuggestions(filtered)
       }
@@ -151,31 +158,32 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
 
   async function handleAcceptAll() {
     setAcceptingAll(true)
-    const remaining = [...suggestions]
-    const accepted: CareTask[] = []
-    const failed: CareSuggestion[] = []
+    // BUG-1 fix: run all save requests in parallel instead of sequentially
+    const results = await Promise.all(
+      suggestions.map(async (suggestion) => {
+        try {
+          const res = await fetch(`/api/plants/${plantId}/care`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: suggestion.name,
+              frequency: suggestion.frequency,
+              interval_days: suggestion.interval_days,
+              next_due_date: suggestion.next_due_date,
+              notes: suggestion.notes,
+            }),
+          })
+          if (!res.ok) throw new Error("Fehler")
+          const savedTask: CareTask = await res.json()
+          return { ok: true as const, task: savedTask, suggestion }
+        } catch {
+          return { ok: false as const, suggestion }
+        }
+      })
+    )
 
-    for (const suggestion of remaining) {
-      try {
-        const res = await fetch(`/api/plants/${plantId}/care`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: suggestion.name,
-            frequency: suggestion.frequency,
-            interval_days: suggestion.interval_days,
-            next_due_date: suggestion.next_due_date,
-            notes: suggestion.notes,
-          }),
-        })
-        if (!res.ok) throw new Error("Fehler")
-        const savedTask: CareTask = await res.json()
-        accepted.push(savedTask)
-      } catch {
-        failed.push(suggestion)
-      }
-    }
-
+    const accepted = results.filter((r) => r.ok).map((r) => (r as { ok: true; task: CareTask }).task)
+    const failed = results.filter((r) => !r.ok).map((r) => r.suggestion)
     setTasks((prev) => [...prev, ...accepted])
     setSuggestions(failed)
     setAcceptingAll(false)

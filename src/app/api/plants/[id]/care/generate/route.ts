@@ -93,9 +93,15 @@ export async function POST(
     return NextResponse.json({ error: 'Pflanze nicht gefunden.' }, { status: 404 })
   }
 
+  // Sanitize user-controlled fields before injecting into the prompt (BUG-4 fix).
+  // Strip newlines and carriage returns which are the primary prompt injection vector,
+  // then truncate to the database column limits.
+  const safeName = plant.name.replace(/[\r\n]+/g, ' ').trim().slice(0, 100)
+  const safeSpecies = (plant.species || 'unbekannt').replace(/[\r\n]+/g, ' ').trim().slice(0, 100)
+
   const prompt = `Du bist ein Pflanzenexperte. Erstelle einen Pflegeplan für folgende Pflanze:
-- Name: ${plant.name}
-- Art/Gattung: ${plant.species || 'unbekannt'}
+- Name: ${safeName}
+- Art/Gattung: ${safeSpecies}
 
 Antworte NUR mit einem JSON-Array (kein Markdown, keine Erklärung) mit 3-5 Pflegeaufgaben.
 Jede Aufgabe hat folgende Felder:
