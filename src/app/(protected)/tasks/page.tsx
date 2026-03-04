@@ -204,9 +204,6 @@ export default function TasksPage() {
               <>
                 {overdueGroups.length > 0 && (
                   <div className="space-y-4">
-                    <p className="text-sm font-medium text-orange-700">
-                      Diese Pflanzen brauchen heute deine Liebe
-                    </p>
                     <div className="space-y-6">
                       {overdueGroups.map((group) => (
                         <PlantGroup
