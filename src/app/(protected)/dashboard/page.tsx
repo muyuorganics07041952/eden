@@ -1,14 +1,10 @@
-import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { Leaf, Sprout, Newspaper, AlertTriangle } from 'lucide-react'
+import { Leaf, Newspaper } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArticleCard } from '@/components/feed/article-card'
 import { UpcomingTasksSection } from '@/components/dashboard/upcoming-tasks-section'
-import { SeasonalTipWidget } from '@/components/dashboard/seasonal-tip-widget'
-import { WeatherWidget } from '@/components/dashboard/weather-widget'
-import { WeatherSection, WeatherSkeleton } from '@/components/dashboard/weather-section'
 import { SeasonalCover } from '@/components/dashboard/seasonal-cover'
 import type { FeedArticle } from '@/lib/types/feed'
 
@@ -16,6 +12,11 @@ type TaskRow = {
   id: string
   name: string
   next_due_date: string
+  plants: { name: string } | null
+}
+
+type OverdueTaskRow = {
+  plant_id: string
   plants: { name: string } | null
 }
 
@@ -69,11 +70,12 @@ export default async function DashboardPage() {
       .from('care_tasks')
       .select('id, name, next_due_date, plants(name)')
       .eq('user_id', user!.id)
+      .gte('next_due_date', today)
       .order('next_due_date', { ascending: true })
-      .limit(6),
+      .limit(5),
     supabase
       .from('care_tasks')
-      .select('plant_id')
+      .select('plant_id, plants(name)')
       .eq('user_id', user!.id)
       .lt('next_due_date', today),
     supabase
@@ -83,7 +85,7 @@ export default async function DashboardPage() {
       .maybeSingle(),
   ])
 
-  // Fetch today's weather for the contextual greeting (same URL as WeatherSection → Next.js deduplicates)
+  // Fetch today's weather for the contextual greeting
   let weatherGreeting: string | null = null
   if (userSettings?.latitude && userSettings?.longitude) {
     try {
@@ -110,15 +112,15 @@ export default async function DashboardPage() {
   const displayName = userSettings?.display_name?.trim()
   const firstName = displayName || user?.email?.split('@')[0] || 'Gärtner'
 
-  // Show up to 3 articles: personalized first, fill with general
+  // Articles: personalized first, fill with general
   const allArticles = [...(personalizedArticles ?? []), ...(generalArticles ?? [])] as FeedArticle[]
   const previewArticles = allArticles.slice(0, 3)
 
   const hasPlants = (plantCount ?? 0) > 0
 
-  // Prepare upcoming tasks
+  // Upcoming tasks (today + future, no overdue)
   const typedTasks = (upcomingTasksRaw ?? []) as unknown as TaskRow[]
-  const upcomingTasks = typedTasks.slice(0, 5).map((t) => ({
+  const upcomingTasks = typedTasks.map((t) => ({
     id: t.id,
     name: t.name,
     plant_name: t.plants?.name ?? 'Unbekannte Pflanze',
@@ -126,8 +128,20 @@ export default async function DashboardPage() {
   }))
   const totalUpcomingCount = typedTasks.length
 
-  // Count distinct plants with overdue tasks
-  const safeOverdueCount = new Set((overdueTasksRaw ?? []).map((t) => t.plant_id)).size
+  // Overdue plants grouped by plant
+  const overdueGroups = Object.values(
+    ((overdueTasksRaw ?? []) as unknown as OverdueTaskRow[]).reduce<
+      Record<string, { plantId: string; plantName: string }>
+    >((acc, t) => {
+      if (!acc[t.plant_id]) {
+        acc[t.plant_id] = {
+          plantId: t.plant_id,
+          plantName: t.plants?.name ?? 'Unbekannte Pflanze',
+        }
+      }
+      return acc
+    }, {})
+  )
 
   return (
     <div className="space-y-8">
@@ -154,48 +168,31 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Meine Pflanzen</CardTitle>
-            <Sprout className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{plantCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {plantCount === 1 ? 'Pflanze in deinem Garten' : 'Pflanzen in deinem Garten'}
-            </p>
-            {safeOverdueCount > 0 && (
-              <Link href="/tasks" className="block">
-                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  {safeOverdueCount} {safeOverdueCount === 1 ? 'Pflanze braucht' : 'Pflanzen brauchen'} Aufmerksamkeit
-                </p>
-              </Link>
-            )}
-            <Button asChild variant="link" className="px-0 mt-2 h-auto text-xs">
-              <Link href="/plants">Alle Pflanzen ansehen →</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+        <>
+          {/* Overdue banner */}
+          {overdueGroups.length > 0 && (
+            <div className="rounded-xl bg-orange-50 border border-orange-200/60 px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-orange-800">
+                    {overdueGroups.length === 1
+                      ? '1 Pflanze braucht Aufmerksamkeit'
+                      : `${overdueGroups.length} Pflanzen brauchen Aufmerksamkeit`}
+                  </p>
+                  <p className="text-xs text-orange-700/70 mt-0.5 truncate">
+                    {overdueGroups.map((g) => g.plantName).join(' · ')}
+                  </p>
+                </div>
+                <Button asChild variant="link" className="h-auto p-0 text-sm text-orange-700 shrink-0">
+                  <Link href="/tasks">Jetzt kümmern →</Link>
+                </Button>
+              </div>
+            </div>
+          )}
 
-      {/* Upcoming Tasks */}
-      <UpcomingTasksSection tasks={upcomingTasks} totalCount={totalUpcomingCount} />
-
-      {/* Seasonal Tip */}
-      <SeasonalTipWidget />
-
-      {/* Weather Widget */}
-      {userSettings?.latitude && userSettings?.longitude ? (
-        <Suspense fallback={<WeatherSkeleton />}>
-          <WeatherSection
-            latitude={userSettings.latitude}
-            longitude={userSettings.longitude}
-            cityName={userSettings.city_name ?? ''}
-          />
-        </Suspense>
-      ) : (
-        <WeatherWidget weather={null} cityName={null} />
+          {/* Upcoming tasks */}
+          <UpcomingTasksSection tasks={upcomingTasks} totalCount={totalUpcomingCount} />
+        </>
       )}
 
       {/* Feed Preview */}
