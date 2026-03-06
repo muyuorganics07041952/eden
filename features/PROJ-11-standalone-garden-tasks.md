@@ -1,6 +1,6 @@
 # PROJ-11: Standalone Garden Tasks
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-06
 **Last Updated:** 2026-03-06
 
@@ -298,4 +298,7 @@ Neue Tabelle `garden_tasks` in Supabase:
 - **Recommendation:** Deploy. Die gefundenen Bugs sind alle Low/Medium-Severity und blockieren kein Deployment. BUG-3 (Rate Limiting) sollte im naechsten Sprint adressiert werden.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-03-06
+**Production URL:** https://eden-azure-zeta.vercel.app
+**Vercel Deployment:** https://eden-gnqmrecs5-muyuorganics07041952s-projects.vercel.app
