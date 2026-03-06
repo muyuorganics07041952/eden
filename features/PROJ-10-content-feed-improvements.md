@@ -1,6 +1,6 @@
 # PROJ-10: Content Feed Improvements
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-03-06
 **Last Updated:** 2026-03-06
 
@@ -55,7 +55,65 @@
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Überblick
+
+PROJ-10 ist eine reine Backend-Änderung. Es gibt keine neuen UI-Komponenten, kein neues Datenbankschema und keine neuen API-Routen. Nur 3 bestehende Dateien werden angepasst.
+
+### Ablauf-Vergleich
+
+**Vorher (wöchentlich):**
+```
+Jeden Sonntag 06:00 UTC
+  → 3 allgemeine Artikel generieren
+  → 2 personalisierte Artikel pro Nutzer generieren
+  → Speichern (ohne Altersfilter)
+
+/feed lädt:
+  → Bis zu 6 personalisierte Artikel (alle jemals erstellt)
+  → Bis zu 9 allgemeine Artikel (alle jemals erstellt)
+```
+
+**Nachher (täglich):**
+```
+Jeden Tag 07:00 UTC
+  → Schritt 0: Artikel > 30 Tage alt löschen (Bereinigung)
+  → Schritt 1: 2 allgemeine Artikel generieren
+  → Schritt 2: 1 personalisierten Artikel pro Nutzer generieren
+  → Speichern (Deduplizierung via Titel-Hash wie bisher)
+
+/feed lädt:
+  → Bis zu 5 personalisierte Artikel der letzten 30 Tage
+  → Bis zu 10 allgemeine Artikel der letzten 30 Tage
+```
+
+### Betroffene Dateien
+
+| Datei | Änderung |
+|---|---|
+| `vercel.json` | Cron-Zeitplan: `0 6 * * 0` → `0 7 * * *` |
+| `src/app/api/feed/generate/route.ts` | Bereinigung alter Artikel am Anfang des Runs; allgemeine Artikel: 3 → 2; personalisierte: 2 → 1 pro Nutzer |
+| `src/app/(protected)/feed/page.tsx` | 30-Tage-Filter auf beide Abfragen; Limits: personalisiert 6 → 5, allgemein 9 → 10 |
+
+### Warum diese Zahlen?
+
+**Täglich 2 allgemein + 1 personalisiert:**
+- Über 30 Tage entstehen ~60 allgemeine Artikel — ausreichend Puffer für .limit(10)
+- Über 30 Tage entstehen ~30 personalisierte Artikel pro Nutzer — ausreichend für .limit(5)
+- Kleinere Batches = weniger Timeout-Risiko und geringere Gemini-Kosten pro Cron-Lauf
+
+**30-Tage-Fenster:**
+- Feed zeigt immer saisonrelevante Inhalte
+- Datenbank wächst auf ein stabiles Maximum (~60 + 30×Nutzeranzahl Artikel)
+- Bereinigung läuft vor Generierung, damit DB-Platz zuerst freigegeben wird
+
+### Keine neuen Abhängigkeiten
+
+Alle nötigen Werkzeuge sind vorhanden: Supabase Admin Client (für Cleanup), Gemini API, Vercel Cron.
+
+### Kein Datenbankschema-Change
+
+`feed_articles` bleibt unverändert. Der 30-Tage-Filter verwendet das bereits vorhandene `created_at`-Feld.
 
 ## QA Test Results
 _To be added by /qa_
