@@ -1,6 +1,6 @@
 # PROJ-11: Standalone Garden Tasks
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-03-06
 **Last Updated:** 2026-03-06
 
@@ -74,7 +74,68 @@ Gartenbesitzer haben regelmäßig Aufgaben, die nicht einer einzelnen Pflanze zu
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Komponentenstruktur
+
+```
+Tasks Page (bestehend, erweitert)
++-- Header
+|   +-- Titel "Fällige Aufgaben"
+|   +-- [NEU] "+" Button → öffnet GardenTaskSheet
++-- Filter Tabs (unverändert)
++-- Month Picker (unverändert)
++-- [NEU] "Garten"-Abschnitt (ausgeblendet wenn leer)
+|   +-- Abschnittsheader: Schaufel-Icon + "Garten"
+|   +-- GardenTaskCard (pro Aufgabe, klickbar)
+|       +-- Erledigen-Button (Haken)
+|       +-- Aufgabenname
+|       +-- Frequenz-Badge (nur bei wiederkehrend)
+|       +-- Fälligkeitsdatum
+|       +-- Notizen-Vorschau (optional)
++-- Pflanzen-Gruppen (unverändert)
++-- [NEU] GardenTaskSheet (Erstellen / Bearbeiten)
+|   +-- Namensfeld (Pflichtfeld)
+|   +-- Häufigkeit (Einmalig / Täglich / ... / Benutzerdefiniert)
+|   +-- Tagesintervall (nur bei "Benutzerdefiniert")
+|   +-- Fälligkeitsdatum (Pflichtfeld)
+|   +-- Notizen (optional)
+|   +-- [nur Bearbeitungsmodus] Löschen-Button mit Bestätigung
++-- Überfällig-AlertDialog (bestehend, wiederverwendet)
+```
+
+### Datenmodell
+
+Neue Tabelle `garden_tasks` in Supabase:
+- **ID** — eindeutig, automatisch
+- **User ID** — Eigentümer, Pflichtfeld (RLS: nur eigene Zeilen sichtbar)
+- **Name** — Pflichtfeld, max 200 Zeichen
+- **Häufigkeit** — `'once'` (einmalig) oder bestehende Frequenz-Werte (weekly, monthly, …)
+- **Intervall in Tagen** — nur relevant bei `'custom'`-Frequenz
+- **Fälligkeitsdatum** — Pflichtfeld, YYYY-MM-DD
+- **Notizen** — optional, max 500 Zeichen
+- **Erstellt am** — automatisch
+
+### Technische Entscheidungen
+
+| Entscheidung | Empfehlung | Begründung |
+|---|---|---|
+| Wo speichern? | Neue Tabelle `garden_tasks` | Kein Risiko für bestehende `care_tasks`-Logik (PROJ-4); eigene RLS-Regeln |
+| Einmalige Aufgaben | Neuer Frequenzwert `'once'` | Konsistent mit bestehendem Frequenz-System; Backend entscheidet: Löschen (once) vs. Datum fortschreiben (wiederkehrend) |
+| API-Struktur | Neue Endpunkte `/api/garden-tasks` | Bestehender `/api/tasks/today` bleibt unberührt |
+| Neue UI-Komponenten | `GardenTaskSheet` nach Vorbild von `CareTaskSheet` | ~80% des Codes identisch; kein neues Muster nötig |
+| Überfällig-Dialog | Bestehende `AlertDialog`-Logik wiederverwenden | Identisches UX-Muster |
+| Neue Pakete | Keine | Alle shadcn/ui-Komponenten bereits installiert |
+
+### Neue Dateien / Änderungen
+
+| Was | Typ |
+|---|---|
+| Supabase-Tabelle `garden_tasks` (mit RLS-Policies) | Neu |
+| `src/lib/types/care.ts` — `'once'` zu `CareFrequency` | Kleine Erweiterung |
+| `/api/garden-tasks/route.ts` (GET + POST) | Neu |
+| `/api/garden-tasks/[id]/route.ts` (PUT + DELETE) | Neu |
+| `src/components/tasks/garden-task-sheet.tsx` | Neu |
+| `src/app/(protected)/tasks/page.tsx` | Erweitert |
 
 ## QA Test Results
 _To be added by /qa_
