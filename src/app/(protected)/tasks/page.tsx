@@ -33,6 +33,9 @@ import { cn } from "@/lib/utils"
 import { FREQUENCY_LABELS, GARDEN_FREQUENCY_LABELS } from "@/lib/types/care"
 import type { TodayCareTask, CareFrequency, GardenTask, GardenTaskFrequency } from "@/lib/types/care"
 import { GardenTaskSheet } from "@/components/tasks/garden-task-sheet"
+import { TaskTypePicker } from "@/components/tasks/task-type-picker"
+import { CareTaskSheet } from "@/components/care/care-task-sheet"
+import type { CareTask } from "@/lib/types/care"
 
 type FilterRange = "month" | "week" | "today"
 
@@ -86,6 +89,9 @@ export default function TasksPage() {
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
   const [gardenSheetOpen, setGardenSheetOpen] = useState(false)
   const [editingGardenTask, setEditingGardenTask] = useState<GardenTask | null>(null)
+  const [typePickerOpen, setTypePickerOpen] = useState(false)
+  const [careSheetOpen, setCareSheetOpen] = useState(false)
+  const [careSheetPlantId, setCareSheetPlantId] = useState<string | null>(null)
 
   const fetchTasks = useCallback(async (filterRange: FilterRange, monthNum?: number) => {
     setLoading(true)
@@ -221,8 +227,23 @@ export default function TasksPage() {
   }
 
   function handleOpenCreateSheet() {
+    setTypePickerOpen(true)
+  }
+
+  function handlePickerSelectGeneral() {
     setEditingGardenTask(null)
     setGardenSheetOpen(true)
+  }
+
+  function handlePickerSelectPlant(plantId: string) {
+    setCareSheetPlantId(plantId)
+    setCareSheetOpen(true)
+  }
+
+  function handleCareTaskSuccess(_task: CareTask) {
+    setCareSheetOpen(false)
+    setCareSheetPlantId(null)
+    fetchTasks(range, selectedMonth ?? undefined)
   }
 
   // Group tasks by plant
@@ -278,10 +299,10 @@ export default function TasksPage() {
         <Button
           size="sm"
           onClick={handleOpenCreateSheet}
-          aria-label="Neue Gartenaufgabe erstellen"
+          aria-label="Aufgabe hinzufügen"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Gartenaufgabe</span>
+          Aufgabe hinzufügen
         </Button>
       </div>
 
@@ -527,6 +548,27 @@ export default function TasksPage() {
         task={editingGardenTask}
         onSuccess={handleGardenSheetSuccess}
       />
+
+      {/* Task type picker sheet */}
+      <TaskTypePicker
+        open={typePickerOpen}
+        onOpenChange={setTypePickerOpen}
+        onSelectGeneral={handlePickerSelectGeneral}
+        onSelectPlant={handlePickerSelectPlant}
+      />
+
+      {/* Care task sheet (for creating care tasks from task page) */}
+      {careSheetPlantId && (
+        <CareTaskSheet
+          open={careSheetOpen}
+          onOpenChange={(open) => {
+            setCareSheetOpen(open)
+            if (!open) setCareSheetPlantId(null)
+          }}
+          plantId={careSheetPlantId}
+          onSuccess={handleCareTaskSuccess}
+        />
+      )}
     </div>
   )
 }
