@@ -35,7 +35,7 @@ export interface FeedResponse {
 /** Zod schema for validating Gemini-generated article JSON */
 export const geminiArticleSchema = z.object({
   title: z.string().min(1).max(200),
-  summary: z.string().min(1).max(150),
+  summary: z.string().min(1).max(500),
   content: z.string().min(1),
   category: z.enum(ARTICLE_CATEGORIES),
 })
