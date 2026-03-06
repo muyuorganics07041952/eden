@@ -23,7 +23,7 @@
 | PROJ-9 | Care Management Improvements | Deployed | [PROJ-9-care-management-improvements.md](PROJ-9-care-management-improvements.md) | 2026-03-01 |
 | PROJ-10 | Content Feed Improvements | Deployed | [PROJ-10-content-feed-improvements.md](PROJ-10-content-feed-improvements.md) | 2026-03-06 |
 | PROJ-11 | Standalone Garden Tasks | Deployed | [PROJ-11-standalone-garden-tasks.md](PROJ-11-standalone-garden-tasks.md) | 2026-03-06 |
-| PROJ-12 | Task Creation Flow | Planned | [PROJ-12-task-creation-flow.md](PROJ-12-task-creation-flow.md) | 2026-03-06 |
+| PROJ-12 | Task Creation Flow | In Progress | [PROJ-12-task-creation-flow.md](PROJ-12-task-creation-flow.md) | 2026-03-06 |
 
 <!-- Add features above this line -->
 

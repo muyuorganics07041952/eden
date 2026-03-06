@@ -62,7 +62,52 @@ Der "+" Button auf der Task-Seite öffnet aktuell direkt das Formular für allge
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Komponentenstruktur
+
+```
+Tasks Page (erweitert)
++-- Header
+|   +-- Titel "Fällige Aufgaben"
+|   +-- [GEÄNDERT] "Aufgabe hinzufügen" Button (war: "+" Icon-only)
+|       → öffnet TaskTypePicker
++-- Filter Tabs (unverändert)
++-- Month Picker (unverändert)
++-- "Garten"-Abschnitt (unverändert)
++-- Pflanzen-Gruppen (unverändert)
++-- [NEU] TaskTypePicker Sheet
+|   +-- Schritt 1: Auswahl-Kacheln
+|   |   +-- "Allgemeine Aufgabe" (Schaufel-Icon + Beschreibung)
+|   |   +-- "Pflegeaufgabe" (Blatt-Icon + Beschreibung)
+|   +-- Schritt 2 (nur bei "Pflegeaufgabe"): Pflanzenliste
+|       +-- Lade-Skeleton (während Abruf)
+|       +-- Pflanzenkarte (Cover-Foto + Name, klickbar) × n
+|       +-- Empty State (keine Pflanzen → Hinweis + Link zu /plants)
+|       +-- Fehler State (Netzwerkfehler → Retry-Button)
++-- GardenTaskSheet (bestehend, unverändert)
++-- CareTaskSheet (bestehend, NEU auf Tasks-Seite eingebunden)
++-- Überfällig-AlertDialog (unverändert)
+```
+
+### Technische Entscheidungen
+
+| Entscheidung | Empfehlung | Begründung |
+|---|---|---|
+| Eigene Komponente für Picker | Neues `TaskTypePicker` | Tasks-Seite bleibt übersichtlich; Picker-Logik (Pflanzenladen, Schritt-State) ist in sich geschlossen |
+| Pflanzendaten | Bestehender `/api/plants` Endpunkt | Kein neues Backend nötig; RLS schützt automatisch |
+| Wann Pflanzen laden? | Beim Öffnen des Pickers (lazy) | Nicht beim Seitenaufruf — spart unnötige Requests |
+| CareTaskSheet | Bestehende Komponente wiederverwenden | Identische Props (plantId, onSuccess) — kein neues Muster |
+| Nach Care-Task erstellt | Task-Liste neu laden (fetchTasks) | Einfachste korrekte Lösung; Care-Tasks erscheinen durch bestehenden Filter |
+
+### Neue Dateien / Änderungen
+
+| Was | Typ |
+|---|---|
+| `src/components/tasks/task-type-picker.tsx` | Neu |
+| `src/app/(protected)/tasks/page.tsx` | Kleine Erweiterung |
+
+### Neue Pakete
+Keine — alle shadcn/ui-Komponenten bereits installiert.
 
 ## QA Test Results
 _To be added by /qa_
