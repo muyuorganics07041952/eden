@@ -70,3 +70,30 @@ export const FREQUENCY_OPTIONS: { value: CareFrequency; label: string }[] = [
   { value: 'yearly', label: 'Jährlich' },
   { value: 'custom', label: 'Benutzerdefiniert' },
 ]
+
+// --- Garden Tasks (standalone, not tied to a plant) ---
+
+export type GardenTaskFrequency = 'once' | CareFrequency
+
+export type GardenTask = {
+  id: string
+  user_id: string
+  name: string
+  frequency: GardenTaskFrequency
+  interval_days: number | null
+  next_due_date: string // ISO date YYYY-MM-DD
+  notes: string | null
+  created_at: string
+}
+
+/** German labels for all garden task frequencies (includes 'once') */
+export const GARDEN_FREQUENCY_LABELS: Record<GardenTaskFrequency, string> = {
+  once: 'Einmalig',
+  ...FREQUENCY_LABELS,
+}
+
+/** Frequency options for garden task select menus (includes 'once') */
+export const GARDEN_FREQUENCY_OPTIONS: { value: GardenTaskFrequency; label: string }[] = [
+  { value: 'once', label: 'Einmalig' },
+  ...FREQUENCY_OPTIONS,
+]
