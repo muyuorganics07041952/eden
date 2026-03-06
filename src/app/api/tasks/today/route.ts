@@ -19,6 +19,29 @@ function getEndOfMonth(): string {
   return endOfMonth.toISOString().split('T')[0]
 }
 
+function flattenTasks(tasks: Record<string, unknown>[]) {
+  return tasks.map((task) => {
+    const { plants, ...rest } = task as Record<string, unknown> & { plants: { name: string }[] }
+    return {
+      ...rest,
+      plant_name: Array.isArray(plants) ? plants[0]?.name ?? '' : (plants as unknown as { name: string }).name,
+    }
+  })
+}
+
+const TASK_SELECT = `
+  id,
+  plant_id,
+  user_id,
+  name,
+  frequency,
+  interval_days,
+  next_due_date,
+  notes,
+  created_at,
+  plants!inner ( name )
+`
+
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
@@ -27,6 +50,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
   }
 
+  // Month filter: ?month=1-12 — returns tasks for that calendar month across all years
+  const rawMonth = request.nextUrl.searchParams.get('month')
+  if (rawMonth !== null) {
+    const month = parseInt(rawMonth, 10)
+    if (isNaN(month) || month < 1 || month > 12) {
+      return NextResponse.json({ error: 'Ungültiger month-Parameter (1-12).' }, { status: 422 })
+    }
+
+    const { data: tasks, error } = await supabase
+      .from('care_tasks')
+      .select(TASK_SELECT)
+      .eq('user_id', user.id)
+      .order('next_due_date', { ascending: true })
+
+    if (error) {
+      return NextResponse.json({ error: 'Fehler beim Laden der Aufgaben.' }, { status: 500 })
+    }
+
+    const filtered = (tasks ?? []).filter((t) => {
+      const d = new Date((t.next_due_date as string) + 'T00:00:00')
+      return d.getMonth() + 1 === month
+    })
+
+    return NextResponse.json(flattenTasks(filtered as unknown as Record<string, unknown>[]))
+  }
+
+  // Range filter: ?range=today|week|month (default: month)
   const rawRange = request.nextUrl.searchParams.get('range') || 'month'
   const parsedRange = rangeSchema.safeParse(rawRange)
   if (!parsedRange.success) {
@@ -54,18 +104,7 @@ export async function GET(request: NextRequest) {
 
   const { data: tasks, error } = await supabase
     .from('care_tasks')
-    .select(`
-      id,
-      plant_id,
-      user_id,
-      name,
-      frequency,
-      interval_days,
-      next_due_date,
-      notes,
-      created_at,
-      plants!inner ( name )
-    `)
+    .select(TASK_SELECT)
     .eq('user_id', user.id)
     .lte('next_due_date', endDate)
     .order('next_due_date', { ascending: true })
@@ -76,15 +115,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Fehler beim Laden der Aufgaben.' }, { status: 500 })
   }
 
-  // Flatten the join result: plants.name -> plant_name
-  // Supabase !inner join returns plants as an array with a single element
-  const flatTasks = (tasks ?? []).map((task) => {
-    const { plants, ...rest } = task as unknown as Record<string, unknown> & { plants: { name: string }[] }
-    return {
-      ...rest,
-      plant_name: Array.isArray(plants) ? plants[0]?.name ?? '' : (plants as unknown as { name: string }).name,
-    }
-  })
-
-  return NextResponse.json(flatTasks)
+  return NextResponse.json(flattenTasks(tasks as unknown as Record<string, unknown>[]))
 }

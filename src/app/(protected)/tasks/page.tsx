@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { cn } from "@/lib/utils"
 import { FREQUENCY_LABELS } from "@/lib/types/care"
 import type { TodayCareTask, CareFrequency } from "@/lib/types/care"
 
@@ -37,6 +38,21 @@ const FILTER_LABELS: Record<FilterRange, string> = {
   week: "Diese Woche",
   today: "Heute",
 }
+
+const MONTHS = [
+  { num: 1,  letter: "J", name: "Januar" },
+  { num: 2,  letter: "F", name: "Februar" },
+  { num: 3,  letter: "M", name: "März" },
+  { num: 4,  letter: "A", name: "April" },
+  { num: 5,  letter: "M", name: "Mai" },
+  { num: 6,  letter: "J", name: "Juni" },
+  { num: 7,  letter: "J", name: "Juli" },
+  { num: 8,  letter: "A", name: "August" },
+  { num: 9,  letter: "S", name: "September" },
+  { num: 10, letter: "O", name: "Oktober" },
+  { num: 11, letter: "N", name: "November" },
+  { num: 12, letter: "D", name: "Dezember" },
+]
 
 function getDueStatus(nextDueDate: string): "overdue" | "today" | "upcoming" {
   const now = new Date()
@@ -62,12 +78,16 @@ export default function TasksPage() {
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
   const [overdueTask, setOverdueTask] = useState<TodayCareTask | null>(null)
   const [range, setRange] = useState<FilterRange>("month")
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
 
-  const fetchTasks = useCallback(async (filterRange: FilterRange) => {
+  const fetchTasks = useCallback(async (filterRange: FilterRange, monthNum?: number) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/tasks/today?range=${filterRange}`)
+      const url = monthNum != null
+        ? `/api/tasks/today?month=${monthNum}`
+        : `/api/tasks/today?range=${filterRange}`
+      const res = await fetch(url)
       if (!res.ok) throw new Error("Fehler beim Laden")
       const data = await res.json()
       setTasks(Array.isArray(data) ? data : [])
@@ -79,11 +99,16 @@ export default function TasksPage() {
   }, [])
 
   useEffect(() => {
-    fetchTasks(range)
-  }, [fetchTasks, range])
+    fetchTasks(range, selectedMonth ?? undefined)
+  }, [fetchTasks, range, selectedMonth])
 
   function handleRangeChange(value: string) {
+    setSelectedMonth(null)
     setRange(value as FilterRange)
+  }
+
+  function handleMonthClick(monthNum: number) {
+    setSelectedMonth((prev) => prev === monthNum ? null : monthNum)
   }
 
   function handleCompleteClick(task: TodayCareTask) {
@@ -175,6 +200,25 @@ export default function TasksPage() {
         </TabsList>
       </Tabs>
 
+      {/* Month Picker */}
+      <div className="flex gap-1.5 flex-wrap" aria-label="Monat auswählen">
+        {MONTHS.map((m) => (
+          <button
+            key={m.num}
+            onClick={() => handleMonthClick(m.num)}
+            title={m.name}
+            className={cn(
+              "h-8 w-8 rounded-md text-xs font-medium transition-colors",
+              selectedMonth === m.num
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+            )}
+          >
+            {m.letter}
+          </button>
+        ))}
+      </div>
+
       {/* Content */}
       {loading ? (
         <TasksPageSkeleton />
@@ -184,12 +228,12 @@ export default function TasksPage() {
             <AlertCircle className="h-10 w-10 text-destructive/60" />
           </div>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <Button variant="outline" onClick={() => fetchTasks(range)}>
+          <Button variant="outline" onClick={() => fetchTasks(range, selectedMonth ?? undefined)}>
             Erneut versuchen
           </Button>
         </div>
       ) : tasks.length === 0 ? (
-        <AllDoneState range={range} onGoToPlants={() => router.push("/plants")} />
+        <AllDoneState range={range} selectedMonth={selectedMonth} onGoToPlants={() => router.push("/plants")} />
       ) : (
         <div className="space-y-8">
           {/* Overdue section */}
@@ -356,8 +400,10 @@ function PlantGroup({
   )
 }
 
-function AllDoneState({ range, onGoToPlants }: { range: FilterRange; onGoToPlants: () => void }) {
-  const rangeLabel = FILTER_LABELS[range].toLowerCase()
+function AllDoneState({ range, selectedMonth, onGoToPlants }: { range: FilterRange; selectedMonth: number | null; onGoToPlants: () => void }) {
+  const rangeLabel = selectedMonth != null
+    ? MONTHS[selectedMonth - 1].name
+    : FILTER_LABELS[range].toLowerCase()
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="bg-primary/10 p-4 rounded-full mb-4">

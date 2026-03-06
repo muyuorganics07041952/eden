@@ -4,16 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArticleCard } from '@/components/feed/article-card'
-import { UpcomingTasksSection } from '@/components/dashboard/upcoming-tasks-section'
 import { SeasonalCover } from '@/components/dashboard/seasonal-cover'
 import type { FeedArticle } from '@/lib/types/feed'
-
-type TaskRow = {
-  id: string
-  name: string
-  next_due_date: string
-  plants: { name: string } | null
-}
 
 type OverdueTaskRow = {
   plant_id: string
@@ -46,7 +38,6 @@ export default async function DashboardPage() {
     { count: plantCount },
     { data: personalizedArticles },
     { data: generalArticles },
-    { data: upcomingTasksRaw },
     { data: overdueTasksRaw },
     { data: userSettings },
   ] = await Promise.all([
@@ -66,13 +57,6 @@ export default async function DashboardPage() {
       .is('user_id', null)
       .order('created_at', { ascending: false })
       .limit(3),
-    supabase
-      .from('care_tasks')
-      .select('id, name, next_due_date, plants(name)')
-      .eq('user_id', user!.id)
-      .gte('next_due_date', today)
-      .order('next_due_date', { ascending: true })
-      .limit(5),
     supabase
       .from('care_tasks')
       .select('plant_id, plants(name)')
@@ -108,27 +92,14 @@ export default async function DashboardPage() {
     }
   }
 
-  // Greeting name: prefer display_name, fall back to email prefix
   const displayName = userSettings?.display_name?.trim()
   const firstName = displayName || user?.email?.split('@')[0] || 'Gärtner'
 
-  // Articles: personalized first, fill with general
   const allArticles = [...(personalizedArticles ?? []), ...(generalArticles ?? [])] as FeedArticle[]
   const previewArticles = allArticles.slice(0, 3)
 
   const hasPlants = (plantCount ?? 0) > 0
 
-  // Upcoming tasks (today + future, no overdue)
-  const typedTasks = (upcomingTasksRaw ?? []) as unknown as TaskRow[]
-  const upcomingTasks = typedTasks.map((t) => ({
-    id: t.id,
-    name: t.name,
-    plant_name: t.plants?.name ?? 'Unbekannte Pflanze',
-    next_due_date: t.next_due_date,
-  }))
-  const totalUpcomingCount = typedTasks.length
-
-  // Overdue plants grouped by plant
   const overdueGroups = Object.values(
     ((overdueTasksRaw ?? []) as unknown as OverdueTaskRow[]).reduce<
       Record<string, { plantId: string; plantName: string }>
@@ -145,7 +116,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Seasonal cover with contextual greeting */}
       <SeasonalCover name={firstName} weatherSubtitle={weatherGreeting} />
 
       {!hasPlants ? (
@@ -167,33 +137,25 @@ export default async function DashboardPage() {
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <>
-          {/* Overdue banner */}
-          {overdueGroups.length > 0 && (
-            <div className="rounded-xl bg-orange-50 border border-orange-200/60 px-5 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-orange-800">
-                    {overdueGroups.length === 1
-                      ? '1 Pflanze braucht Aufmerksamkeit'
-                      : `${overdueGroups.length} Pflanzen brauchen Aufmerksamkeit`}
-                  </p>
-                  <p className="text-xs text-orange-700/70 mt-0.5 truncate">
-                    {overdueGroups.map((g) => g.plantName).join(' · ')}
-                  </p>
-                </div>
-                <Button asChild variant="link" className="h-auto p-0 text-sm text-orange-700 shrink-0">
-                  <Link href="/tasks">Jetzt kümmern →</Link>
-                </Button>
-              </div>
+      ) : overdueGroups.length > 0 ? (
+        <div className="rounded-xl bg-orange-50 border border-orange-200/60 px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-orange-800">
+                {overdueGroups.length === 1
+                  ? '1 Pflanze braucht Aufmerksamkeit'
+                  : `${overdueGroups.length} Pflanzen brauchen Aufmerksamkeit`}
+              </p>
+              <p className="text-xs text-orange-700/70 mt-0.5 truncate">
+                {overdueGroups.map((g) => g.plantName).join(' · ')}
+              </p>
             </div>
-          )}
-
-          {/* Upcoming tasks */}
-          <UpcomingTasksSection tasks={upcomingTasks} totalCount={totalUpcomingCount} />
-        </>
-      )}
+            <Button asChild variant="link" className="h-auto p-0 text-sm text-orange-700 shrink-0">
+              <Link href="/tasks">Jetzt kümmern →</Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Feed Preview */}
       <section>
