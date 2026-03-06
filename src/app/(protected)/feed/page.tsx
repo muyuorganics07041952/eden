@@ -13,22 +13,25 @@ export default async function FeedPage() {
 
   // Fetch only preview fields (omit content/title_hash/plant_context for bandwidth)
   const PREVIEW_FIELDS = "id, title, summary, category, reading_time, created_at"
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  // Fetch personalized articles (user_id = current user)
+  // Fetch personalized articles (user_id = current user, last 30 days)
   const { data: personalizedArticles, error: personalizedError } = await supabase
     .from("feed_articles")
     .select(PREVIEW_FIELDS)
     .eq("user_id", user.id)
+    .gte("created_at", thirtyDaysAgo)
     .order("created_at", { ascending: false })
-    .limit(6)
+    .limit(5)
 
-  // Fetch general articles (user_id is null)
+  // Fetch general articles (user_id is null, last 30 days)
   const { data: generalArticles, error: generalError } = await supabase
     .from("feed_articles")
     .select(PREVIEW_FIELDS)
     .is("user_id", null)
+    .gte("created_at", thirtyDaysAgo)
     .order("created_at", { ascending: false })
-    .limit(9)
+    .limit(10)
 
   const personalized = (personalizedArticles ?? []) as FeedArticle[]
   const general = (generalArticles ?? []) as FeedArticle[]

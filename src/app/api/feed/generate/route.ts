@@ -229,10 +229,24 @@ export async function GET(request: Request) {
   let usersProcessed = 0
   let personalizedGenerated = 0
   let errors = 0
+  let cleaned = 0
 
-  // --- Step 1: Generate 3 general articles with varied categories ---
+  // --- Step 0: Delete articles older than 30 days ---
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const { count: deletedCount, error: cleanupError } = await supabase
+    .from('feed_articles')
+    .delete({ count: 'exact' })
+    .lt('created_at', cutoff)
+
+  if (cleanupError) {
+    console.error('Error cleaning up old articles:', cleanupError)
+  } else {
+    cleaned = deletedCount ?? 0
+  }
+
+  // --- Step 1: Generate 2 general articles with varied categories ---
   const currentMonth = new Date().toLocaleString('de-DE', { month: 'long' })
-  const categoriesForGeneral = shuffleArray([...ARTICLE_CATEGORIES]).slice(0, 3)
+  const categoriesForGeneral = shuffleArray([...ARTICLE_CATEGORIES]).slice(0, 2)
 
   for (const category of categoriesForGeneral) {
     try {
@@ -313,8 +327,8 @@ export async function GET(request: Request) {
         .slice(0, 10)
         .map((t) => `${t.plant_name}: ${t.task_name} (fällig: ${t.due_date})`)
 
-      // Generate 2 personalized articles with different categories
-      const persCategories = shuffleArray([...ARTICLE_CATEGORIES]).slice(0, 2)
+      // Generate 1 personalized article with a random category
+      const persCategories = shuffleArray([...ARTICLE_CATEGORIES]).slice(0, 1)
 
       for (const category of persCategories) {
         try {
@@ -369,6 +383,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
+    cleaned,
     generalGenerated,
     usersProcessed,
     personalizedGenerated,
