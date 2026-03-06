@@ -11,6 +11,8 @@ import {
   PartyPopper,
   Loader2,
   Leaf,
+  Plus,
+  Shovel,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -28,8 +30,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
-import { FREQUENCY_LABELS } from "@/lib/types/care"
-import type { TodayCareTask, CareFrequency } from "@/lib/types/care"
+import { FREQUENCY_LABELS, GARDEN_FREQUENCY_LABELS } from "@/lib/types/care"
+import type { TodayCareTask, CareFrequency, GardenTask, GardenTaskFrequency } from "@/lib/types/care"
+import { GardenTaskSheet } from "@/components/tasks/garden-task-sheet"
 
 type FilterRange = "month" | "week" | "today"
 
@@ -73,24 +76,43 @@ function formatDate(dateStr: string): string {
 export default function TasksPage() {
   const router = useRouter()
   const [tasks, setTasks] = useState<TodayCareTask[]>([])
+  const [gardenTasks, setGardenTasks] = useState<GardenTask[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
   const [overdueTask, setOverdueTask] = useState<TodayCareTask | null>(null)
+  const [overdueGardenTask, setOverdueGardenTask] = useState<GardenTask | null>(null)
   const [range, setRange] = useState<FilterRange>("month")
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const [gardenSheetOpen, setGardenSheetOpen] = useState(false)
+  const [editingGardenTask, setEditingGardenTask] = useState<GardenTask | null>(null)
 
   const fetchTasks = useCallback(async (filterRange: FilterRange, monthNum?: number) => {
     setLoading(true)
     setError(null)
     try {
-      const url = monthNum != null
+      const careUrl = monthNum != null
         ? `/api/tasks/today?month=${monthNum}`
         : `/api/tasks/today?range=${filterRange}`
-      const res = await fetch(url)
-      if (!res.ok) throw new Error("Fehler beim Laden")
-      const data = await res.json()
-      setTasks(Array.isArray(data) ? data : [])
+      const gardenUrl = monthNum != null
+        ? `/api/garden-tasks?month=${monthNum}`
+        : `/api/garden-tasks?range=${filterRange}`
+
+      const [careRes, gardenRes] = await Promise.all([
+        fetch(careUrl),
+        fetch(gardenUrl),
+      ])
+
+      if (!careRes.ok) throw new Error("Fehler beim Laden")
+      const careData = await careRes.json()
+      setTasks(Array.isArray(careData) ? careData : [])
+
+      if (gardenRes.ok) {
+        const gardenData = await gardenRes.json()
+        setGardenTasks(Array.isArray(gardenData) ? gardenData : [])
+      } else {
+        setGardenTasks([])
+      }
     } catch {
       setError("Fehler beim Laden der Aufgaben.")
     } finally {
@@ -142,6 +164,67 @@ export default function TasksPage() {
     }
   }
 
+  // --- Garden task handlers ---
+
+  function handleGardenCompleteClick(task: GardenTask) {
+    const status = getDueStatus(task.next_due_date)
+    if (status === "overdue") {
+      // For one-time overdue tasks, just delete them (no "original rhythm")
+      if (task.frequency === "once") {
+        doGardenComplete(task, "today")
+      } else {
+        setOverdueGardenTask(task)
+      }
+      return
+    }
+    doGardenComplete(task, "today")
+  }
+
+  async function doGardenComplete(task: GardenTask, mode: "today" | "original") {
+    setOverdueGardenTask(null)
+    setCompletingIds((prev) => new Set(prev).add(task.id))
+    try {
+      const res = await fetch(`/api/garden-tasks/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", mode }),
+      })
+      if (!res.ok) throw new Error("Fehler")
+      // Remove from list (one-time gets deleted, recurring gets new date outside range)
+      setGardenTasks((prev) => prev.filter((t) => t.id !== task.id))
+    } catch {
+      // Keep the task in the list on error
+    } finally {
+      setCompletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(task.id)
+        return next
+      })
+    }
+  }
+
+  function handleGardenTaskClick(task: GardenTask) {
+    setEditingGardenTask(task)
+    setGardenSheetOpen(true)
+  }
+
+  function handleGardenSheetSuccess(task: GardenTask | null, action: "created" | "updated" | "deleted") {
+    if (action === "created" && task) {
+      // Re-fetch to get correct filtering
+      fetchTasks(range, selectedMonth ?? undefined)
+    } else if (action === "updated" && task) {
+      setGardenTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+    } else if (action === "deleted") {
+      setGardenTasks((prev) => prev.filter((t) => t.id !== editingGardenTask?.id))
+    }
+    setEditingGardenTask(null)
+  }
+
+  function handleOpenCreateSheet() {
+    setEditingGardenTask(null)
+    setGardenSheetOpen(true)
+  }
+
   // Group tasks by plant
   const grouped = tasks.reduce<Record<string, { plantName: string; plantId: string; tasks: TodayCareTask[] }>>(
     (acc, task) => {
@@ -168,6 +251,9 @@ export default function TasksPage() {
   })
 
   const overdueCount = tasks.filter((t) => getDueStatus(t.next_due_date) === "overdue").length
+  const overdueGardenCount = gardenTasks.filter((t) => getDueStatus(t.next_due_date) === "overdue").length
+  const totalOverdueCount = overdueCount + overdueGardenCount
+  const totalTaskCount = tasks.length + gardenTasks.length
 
   return (
     <div className="space-y-6">
@@ -178,17 +264,25 @@ export default function TasksPage() {
             <CheckSquare className="h-6 w-6 text-primary" />
             Fällige Aufgaben
           </h1>
-          {!loading && !error && tasks.length > 0 && (
+          {!loading && !error && totalTaskCount > 0 && (
             <p className="text-sm text-muted-foreground mt-1">
-              {tasks.length} Aufgabe{tasks.length !== 1 ? "n" : ""} fällig
-              {overdueCount > 0 && (
+              {totalTaskCount} Aufgabe{totalTaskCount !== 1 ? "n" : ""} fällig
+              {totalOverdueCount > 0 && (
                 <span className="text-orange-600">
-                  {" "}({overdueCount} überfällig)
+                  {" "}({totalOverdueCount} überfällig)
                 </span>
               )}
             </p>
           )}
         </div>
+        <Button
+          size="sm"
+          onClick={handleOpenCreateSheet}
+          aria-label="Neue Gartenaufgabe erstellen"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Gartenaufgabe</span>
+        </Button>
       </div>
 
       {/* Filter Tabs */}
@@ -232,12 +326,92 @@ export default function TasksPage() {
             Erneut versuchen
           </Button>
         </div>
-      ) : tasks.length === 0 ? (
+      ) : totalTaskCount === 0 ? (
         <AllDoneState range={range} selectedMonth={selectedMonth} onGoToPlants={() => router.push("/plants")} />
       ) : (
         <div className="space-y-8">
-          {/* Overdue section */}
-          {(() => {
+          {/* Garden tasks section */}
+          {gardenTasks.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Shovel className="h-4 w-4" />
+                Garten
+              </div>
+              <div className="space-y-2">
+                {gardenTasks.map((task) => {
+                  const status = getDueStatus(task.next_due_date)
+                  const isCompleting = completingIds.has(task.id)
+                  return (
+                    <Card
+                      key={task.id}
+                      className={cn(
+                        "cursor-pointer transition-colors hover:bg-accent/50",
+                        status === "overdue"
+                          ? "border-orange-200/70 bg-orange-50/50"
+                          : status === "today"
+                          ? "border-primary/50 bg-primary/5"
+                          : ""
+                      )}
+                      onClick={() => handleGardenTaskClick(task)}
+                    >
+                      <CardContent className="flex items-center gap-3 p-4">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleGardenCompleteClick(task)
+                          }}
+                          disabled={isCompleting}
+                          aria-label={`${task.name} als erledigt markieren`}
+                        >
+                          {isCompleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-sm truncate">{task.name}</h3>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                            {task.frequency !== "once" && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {GARDEN_FREQUENCY_LABELS[task.frequency as GardenTaskFrequency]}
+                              </span>
+                            )}
+                            {task.frequency === "once" && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                Einmalig
+                              </Badge>
+                            )}
+                            {status === "overdue" && (
+                              <Badge className="text-xs px-1.5 py-0 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                Seit {formatDate(task.next_due_date)}
+                              </Badge>
+                            )}
+                            {status === "upcoming" && (
+                              <span>Fällig: {formatDate(task.next_due_date)}</span>
+                            )}
+                          </div>
+                          {task.notes && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                              {task.notes}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Plant care tasks section */}
+          {tasks.length > 0 && (() => {
             const overdueGroups = sortedGroups.filter((g) =>
               g.tasks.some((t) => getDueStatus(t.next_due_date) === "overdue")
             )
@@ -287,7 +461,7 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Overdue completion confirmation dialog */}
+      {/* Overdue completion confirmation dialog (care tasks) */}
       <AlertDialog open={!!overdueTask} onOpenChange={(open) => { if (!open) setOverdueTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -314,6 +488,45 @@ export default function TasksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Overdue completion confirmation dialog (garden tasks) */}
+      <AlertDialog open={!!overdueGardenTask} onOpenChange={(open) => { if (!open) setOverdueGardenTask(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Überfällige Aufgabe erledigen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Die Aufgabe &quot;{overdueGardenTask?.name}&quot; ist überfällig. Wie soll das nächste Fälligkeitsdatum berechnet werden?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="outline"
+                onClick={() => overdueGardenTask && doGardenComplete(overdueGardenTask, "original")}
+              >
+                Im Original-Rhythmus
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => overdueGardenTask && doGardenComplete(overdueGardenTask, "today")}
+            >
+              Ab heute rechnen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Garden task create/edit sheet */}
+      <GardenTaskSheet
+        open={gardenSheetOpen}
+        onOpenChange={(open) => {
+          setGardenSheetOpen(open)
+          if (!open) setEditingGardenTask(null)
+        }}
+        task={editingGardenTask}
+        onSuccess={handleGardenSheetSuccess}
+      />
     </div>
   )
 }

@@ -22,7 +22,7 @@
 | PROJ-8 | Offline & PWA Optimization | Deployed | [PROJ-8-offline-pwa-optimization.md](PROJ-8-offline-pwa-optimization.md) | 2026-02-27 |
 | PROJ-9 | Care Management Improvements | Deployed | [PROJ-9-care-management-improvements.md](PROJ-9-care-management-improvements.md) | 2026-03-01 |
 | PROJ-10 | Content Feed Improvements | Deployed | [PROJ-10-content-feed-improvements.md](PROJ-10-content-feed-improvements.md) | 2026-03-06 |
-| PROJ-11 | Standalone Garden Tasks | In Progress | [PROJ-11-standalone-garden-tasks.md](PROJ-11-standalone-garden-tasks.md) | 2026-03-06 |
+| PROJ-11 | Standalone Garden Tasks | In Review | [PROJ-11-standalone-garden-tasks.md](PROJ-11-standalone-garden-tasks.md) | 2026-03-06 |
 
 <!-- Add features above this line -->
 
