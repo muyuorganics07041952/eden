@@ -21,10 +21,11 @@
 | PROJ-7 | Garden Dashboard | Deployed | [PROJ-7-garden-dashboard.md](PROJ-7-garden-dashboard.md) | 2026-02-27 |
 | PROJ-8 | Offline & PWA Optimization | Deployed | [PROJ-8-offline-pwa-optimization.md](PROJ-8-offline-pwa-optimization.md) | 2026-02-27 |
 | PROJ-9 | Care Management Improvements | Deployed | [PROJ-9-care-management-improvements.md](PROJ-9-care-management-improvements.md) | 2026-03-01 |
+| PROJ-10 | Content Feed Improvements | Planned | [PROJ-10-content-feed-improvements.md](PROJ-10-content-feed-improvements.md) | 2026-03-06 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-10
+## Next Available ID: PROJ-11
 
 ## Build Order (Recommended)
 1. **PROJ-1** — Auth (Fundament für alles)

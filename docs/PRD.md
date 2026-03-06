@@ -22,6 +22,7 @@ Eine progressive Web-App (PWA) für Gartenbegeisterte, die ihre Pflanzen digital
 | P0 (MVP) | Content Feed | Planned |
 | P1 | Garden Dashboard | Planned |
 | P2 | Offline & PWA Optimization | Planned |
+| P2 | Content Feed Improvements | Planned |
 
 ## Success Metrics
 - **Onboarding:** 60% der neuen Nutzer legen mindestens 3 Pflanzen an
