@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   CheckSquare,
@@ -98,6 +98,8 @@ export default function TasksPage() {
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [careSheetOpen, setCareSheetOpen] = useState(false)
   const [careSheetPlantId, setCareSheetPlantId] = useState<string | null>(null)
+  // Preserve plantId during close animation so the sheet doesn't unmount prematurely
+  const lastCareSheetPlantIdRef = useRef<string | null>(null)
 
   const fetchTasks = useCallback(async (filterRange: FilterRange, monthNum?: number) => {
     setLoading(true)
@@ -242,6 +244,7 @@ export default function TasksPage() {
   }
 
   function handlePickerSelectPlant(plantId: string) {
+    lastCareSheetPlantIdRef.current = plantId
     setCareSheetPlantId(plantId)
     setCareSheetOpen(true)
   }
@@ -569,17 +572,16 @@ export default function TasksPage() {
       />
 
       {/* Care task sheet (for creating care tasks from task page) */}
-      {careSheetPlantId && (
-        <CareTaskSheet
-          open={careSheetOpen}
-          onOpenChange={(open) => {
-            setCareSheetOpen(open)
-            if (!open) setCareSheetPlantId(null)
-          }}
-          plantId={careSheetPlantId}
-          onSuccess={handleCareTaskSuccess}
-        />
-      )}
+      {/* Always mounted to avoid unmounting during close animation */}
+      <CareTaskSheet
+        open={careSheetOpen}
+        onOpenChange={(open) => {
+          setCareSheetOpen(open)
+          if (!open) setCareSheetPlantId(null)
+        }}
+        plantId={lastCareSheetPlantIdRef.current ?? ''}
+        onSuccess={handleCareTaskSuccess}
+      />
     </div>
   )
 }

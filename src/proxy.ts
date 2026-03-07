@@ -1,10 +1,31 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { ratelimit } from '@/lib/rate-limit'
 
 const AUTH_ROUTES = ['/login', '/register', '/reset-password', '/update-password']
 const PUBLIC_ROUTES = ['/auth/callback', '/api/auth', '/api/feed/generate', '/api/push/send']
 
 export async function proxy(request: NextRequest) {
+  // Rate limiting on /api/* routes (only active when Upstash env vars are configured)
+  if (ratelimit && request.nextUrl.pathname.startsWith('/api/')) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'anonymous'
+    const { success, limit, remaining } = await ratelimit.limit(ip)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Zu viele Anfragen. Bitte versuche es später erneut.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': remaining.toString(),
+            'Retry-After': '10',
+          },
+        }
+      )
+    }
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
