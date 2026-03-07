@@ -1,6 +1,6 @@
 # PROJ-12: Task Creation Flow
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-06
 **Last Updated:** 2026-03-06
 
@@ -225,4 +225,7 @@ Keine — alle shadcn/ui-Komponenten bereits installiert.
 - **Recommendation:** Deploy. The 3 low-severity bugs are minor and can be addressed in a future sprint. BUG-3 (status mismatch) should be corrected as part of the deployment process.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-03-07
+**Production URL:** https://eden-azure-zeta.vercel.app
+**Vercel Deployment:** https://eden-cl3qr93du-muyuorganics07041952s-projects.vercel.app
