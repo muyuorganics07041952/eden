@@ -37,6 +37,12 @@ import { TaskTypePicker } from "@/components/tasks/task-type-picker"
 import { CareTaskSheet } from "@/components/care/care-task-sheet"
 import type { CareTask } from "@/lib/types/care"
 
+const MONTH_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+
+function getSeasonBadgeLabel(start: number, end: number): string {
+  return `${MONTH_SHORT[start - 1]}–${MONTH_SHORT[end - 1]}`
+}
+
 type FilterRange = "month" | "week" | "today"
 
 const FILTER_LABELS: Record<FilterRange, string> = {
@@ -407,6 +413,11 @@ export default function TasksPage() {
                                 Einmalig
                               </Badge>
                             )}
+                            {task.active_month_start != null && task.active_month_end != null && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                {getSeasonBadgeLabel(task.active_month_start, task.active_month_end)}
+                              </Badge>
+                            )}
                             {status === "overdue" && (
                               <Badge className="text-xs px-1.5 py-0 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
@@ -630,6 +641,11 @@ function PlantGroup({
                       <Clock className="h-3 w-3" />
                       {FREQUENCY_LABELS[task.frequency as CareFrequency]}
                     </span>
+                    {task.active_month_start != null && task.active_month_end != null && (
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                        {getSeasonBadgeLabel(task.active_month_start, task.active_month_end)}
+                      </Badge>
+                    )}
                     {status === "overdue" && (
                       <Badge className="text-xs px-1.5 py-0 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">
                         <AlertTriangle className="h-3 w-3 mr-1" />

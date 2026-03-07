@@ -20,8 +20,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { FREQUENCY_OPTIONS } from "@/lib/types/care"
 import type { CareTask, CareFrequency } from "@/lib/types/care"
+
+const MONTH_OPTIONS = [
+  { value: 1, label: 'Januar' },
+  { value: 2, label: 'Februar' },
+  { value: 3, label: 'März' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'Mai' },
+  { value: 6, label: 'Juni' },
+  { value: 7, label: 'Juli' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'Oktober' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'Dezember' },
+]
 
 interface CareTaskSheetProps {
   open: boolean
@@ -50,8 +66,12 @@ export function CareTaskSheet({
   const [intervalDays, setIntervalDays] = useState<number>(7)
   const [nextDueDate, setNextDueDate] = useState(getTodayISO())
   const [notes, setNotes] = useState("")
+  const [seasonEnabled, setSeasonEnabled] = useState(false)
+  const [activeMonthStart, setActiveMonthStart] = useState<number | null>(null)
+  const [activeMonthEnd, setActiveMonthEnd] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [seasonError, setSeasonError] = useState<string | null>(null)
 
   // Reset form when opening or when task changes
   useEffect(() => {
@@ -62,14 +82,22 @@ export function CareTaskSheet({
         setIntervalDays(task.interval_days)
         setNextDueDate(task.next_due_date)
         setNotes(task.notes ?? "")
+        const hasSeason = task.active_month_start != null && task.active_month_end != null
+        setSeasonEnabled(hasSeason)
+        setActiveMonthStart(task.active_month_start)
+        setActiveMonthEnd(task.active_month_end)
       } else {
         setName("")
         setFrequency("weekly")
         setIntervalDays(7)
         setNextDueDate(getTodayISO())
         setNotes("")
+        setSeasonEnabled(false)
+        setActiveMonthStart(null)
+        setActiveMonthEnd(null)
       }
       setError(null)
+      setSeasonError(null)
     }
   }, [open, task])
 
@@ -87,6 +115,11 @@ export function CareTaskSheet({
       return
     }
 
+    if (seasonEnabled && (activeMonthStart == null || activeMonthEnd == null)) {
+      setSeasonError("Bitte beide Monate auswählen")
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -100,6 +133,9 @@ export function CareTaskSheet({
       if (frequency === "custom") {
         body.interval_days = intervalDays
       }
+
+      body.active_month_start = seasonEnabled ? activeMonthStart : null
+      body.active_month_end = seasonEnabled ? activeMonthEnd : null
 
       let url: string
       let method: string
@@ -214,6 +250,84 @@ export function CareTaskSheet({
               maxLength={500}
               rows={3}
             />
+          </div>
+
+          {/* Aktivzeitraum (Seasonal scheduling) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="care-task-season-toggle">Saisonale Aufgabe</Label>
+              <Switch
+                id="care-task-season-toggle"
+                checked={seasonEnabled}
+                onCheckedChange={(checked) => {
+                  setSeasonEnabled(checked)
+                  if (!checked) {
+                    setActiveMonthStart(null)
+                    setActiveMonthEnd(null)
+                    setSeasonError(null)
+                  }
+                }}
+                aria-label="Saisonale Aufgabe aktivieren"
+              />
+            </div>
+            {seasonEnabled && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="care-task-month-start">Aktiv von</Label>
+                    <Select
+                      value={activeMonthStart != null ? String(activeMonthStart) : ""}
+                      onValueChange={(v) => {
+                        setActiveMonthStart(Number(v))
+                        if (seasonError) setSeasonError(null)
+                      }}
+                    >
+                      <SelectTrigger id="care-task-month-start" aria-label="Aktiv von">
+                        <SelectValue placeholder="Monat" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTH_OPTIONS.map((m) => (
+                          <SelectItem key={m.value} value={String(m.value)}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="care-task-month-end">Aktiv bis</Label>
+                    <Select
+                      value={activeMonthEnd != null ? String(activeMonthEnd) : ""}
+                      onValueChange={(v) => {
+                        setActiveMonthEnd(Number(v))
+                        if (seasonError) setSeasonError(null)
+                      }}
+                    >
+                      <SelectTrigger id="care-task-month-end" aria-label="Aktiv bis">
+                        <SelectValue placeholder="Monat" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTH_OPTIONS.map((m) => (
+                          <SelectItem key={m.value} value={String(m.value)}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {activeMonthStart != null && activeMonthEnd != null && activeMonthStart > activeMonthEnd && (
+                  <p className="text-xs text-muted-foreground">
+                    {MONTH_OPTIONS[activeMonthStart - 1].label.slice(0, 3)}–{MONTH_OPTIONS[activeMonthEnd - 1].label.slice(0, 3)} = jahresübergreifende Saison
+                  </p>
+                )}
+                {seasonError && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {seasonError}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Error */}

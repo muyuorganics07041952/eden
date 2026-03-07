@@ -17,6 +17,8 @@ export type CareTask = {
   interval_days: number
   next_due_date: string // ISO date YYYY-MM-DD
   notes: string | null
+  active_month_start: number | null
+  active_month_end: number | null
   created_at: string
 }
 
@@ -83,6 +85,8 @@ export type GardenTask = {
   interval_days: number | null
   next_due_date: string // ISO date YYYY-MM-DD
   notes: string | null
+  active_month_start: number | null
+  active_month_end: number | null
   created_at: string
 }
 

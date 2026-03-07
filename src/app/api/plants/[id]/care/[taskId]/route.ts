@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { FREQUENCY_INTERVAL_MAP } from '@/lib/types/care'
 import type { CareFrequency } from '@/lib/types/care'
+import { adjustDateForSeason } from '@/lib/season'
 
 const VALID_FREQUENCIES: CareFrequency[] = [
   'daily', 'weekly', 'biweekly', 'monthly',
@@ -16,9 +17,18 @@ const editSchema = z.object({
   interval_days: z.number().int().positive().optional(),
   next_due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum muss im Format YYYY-MM-DD sein'),
   notes: z.string().max(500).optional().nullable(),
+  active_month_start: z.number().int().min(1).max(12).optional().nullable(),
+  active_month_end: z.number().int().min(1).max(12).optional().nullable(),
 }).refine(
   (data) => data.frequency !== 'custom' || (data.interval_days !== undefined && data.interval_days > 0),
   { message: 'interval_days ist bei benutzerdefinierter Häufigkeit erforderlich', path: ['interval_days'] }
+).refine(
+  (data) => {
+    const hasStart = data.active_month_start != null
+    const hasEnd = data.active_month_end != null
+    return hasStart === hasEnd
+  },
+  { message: 'active_month_start und active_month_end müssen beide gesetzt oder beide leer sein', path: ['active_month_start'] }
 )
 
 const completeSchema = z.object({
@@ -79,6 +89,8 @@ export async function PUT(
 
   if (parsed.data.action === 'edit') {
     const { name, frequency, next_due_date, notes } = parsed.data
+    const active_month_start = parsed.data.active_month_start ?? null
+    const active_month_end = parsed.data.active_month_end ?? null
 
     const interval_days = frequency === 'custom'
       ? parsed.data.interval_days!
@@ -92,6 +104,8 @@ export async function PUT(
         interval_days,
         next_due_date,
         notes: notes ?? null,
+        active_month_start,
+        active_month_end,
       })
       .eq('id', taskId)
       .eq('plant_id', plantId)
@@ -109,10 +123,10 @@ export async function PUT(
   // action === 'complete'
   const { mode } = parsed.data
 
-  // Fetch the current task to get interval_days and current next_due_date
+  // Fetch the current task to get interval_days, current next_due_date, and season fields
   const { data: currentTask, error: fetchError } = await supabase
     .from('care_tasks')
-    .select('interval_days, next_due_date')
+    .select('interval_days, next_due_date, active_month_start, active_month_end')
     .eq('id', taskId)
     .eq('plant_id', plantId)
     .eq('user_id', user.id)
@@ -129,6 +143,9 @@ export async function PUT(
     // mode === 'original': advance from the current (possibly overdue) due date
     newDueDate = addDays(currentTask.next_due_date, currentTask.interval_days)
   }
+
+  // Adjust for season: if the new due date falls outside the active season, jump to next season start
+  newDueDate = adjustDateForSeason(newDueDate, currentTask.active_month_start, currentTask.active_month_end)
 
   const { data: updatedTask, error: updateError } = await supabase
     .from('care_tasks')

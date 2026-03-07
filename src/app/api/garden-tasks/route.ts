@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { FREQUENCY_INTERVAL_MAP } from '@/lib/types/care'
 import type { GardenTaskFrequency } from '@/lib/types/care'
+import { isInSeason, adjustDateForSeason } from '@/lib/season'
 
 const VALID_FREQUENCIES: GardenTaskFrequency[] = [
   'once', 'daily', 'weekly', 'biweekly', 'monthly',
@@ -17,9 +18,18 @@ const createGardenTaskSchema = z.object({
   interval_days: z.number().int().min(1).max(365).optional(),
   next_due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum muss im Format YYYY-MM-DD sein'),
   notes: z.string().max(500).optional().nullable(),
+  active_month_start: z.number().int().min(1).max(12).optional().nullable(),
+  active_month_end: z.number().int().min(1).max(12).optional().nullable(),
 }).refine(
   (data) => data.frequency !== 'custom' || (data.interval_days !== undefined && data.interval_days > 0),
   { message: 'interval_days ist bei benutzerdefinierter Häufigkeit erforderlich', path: ['interval_days'] }
+).refine(
+  (data) => {
+    const hasStart = data.active_month_start != null
+    const hasEnd = data.active_month_end != null
+    return hasStart === hasEnd
+  },
+  { message: 'active_month_start und active_month_end müssen beide gesetzt oder beide leer sein', path: ['active_month_start'] }
 )
 
 function getEndOfWeek(): string {
@@ -66,7 +76,8 @@ export async function GET(request: NextRequest) {
 
     const filtered = (tasks ?? []).filter((t) => {
       const d = new Date((t.next_due_date as string) + 'T00:00:00')
-      return d.getMonth() + 1 === month
+      const taskMonth = d.getMonth() + 1
+      return taskMonth === month && isInSeason(month, t.active_month_start, t.active_month_end)
     })
 
     return NextResponse.json(filtered)
@@ -111,7 +122,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Fehler beim Laden der Gartenaufgaben.' }, { status: 500 })
   }
 
-  return NextResponse.json(tasks)
+  // Filter out tasks that are out-of-season for today's month
+  const currentMonth = new Date().getMonth() + 1
+  const inSeasonTasks = (tasks ?? []).filter((t) =>
+    isInSeason(currentMonth, t.active_month_start, t.active_month_end)
+  )
+
+  return NextResponse.json(inSeasonTasks)
 }
 
 export async function POST(request: NextRequest) {
@@ -138,6 +155,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { name, frequency, next_due_date, notes } = parsed.data
+  const active_month_start = parsed.data.active_month_start ?? null
+  const active_month_end = parsed.data.active_month_end ?? null
 
   // Derive interval_days: null for 'once', from map for fixed, from input for custom
   let interval_days: number | null
@@ -149,6 +168,9 @@ export async function POST(request: NextRequest) {
     interval_days = FREQUENCY_INTERVAL_MAP[frequency as Exclude<GardenTaskFrequency, 'once' | 'custom'>]
   }
 
+  // If season is set and current date is outside the season, adjust next_due_date
+  const adjustedDueDate = adjustDateForSeason(next_due_date, active_month_start, active_month_end)
+
   const { data: task, error } = await supabase
     .from('garden_tasks')
     .insert({
@@ -156,8 +178,10 @@ export async function POST(request: NextRequest) {
       name,
       frequency,
       interval_days,
-      next_due_date,
+      next_due_date: adjustedDueDate,
       notes: notes ?? null,
+      active_month_start,
+      active_month_end,
     })
     .select()
     .single()
