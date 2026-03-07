@@ -24,10 +24,11 @@
 | PROJ-10 | Content Feed Improvements | Deployed | [PROJ-10-content-feed-improvements.md](PROJ-10-content-feed-improvements.md) | 2026-03-06 |
 | PROJ-11 | Standalone Garden Tasks | Deployed | [PROJ-11-standalone-garden-tasks.md](PROJ-11-standalone-garden-tasks.md) | 2026-03-06 |
 | PROJ-12 | Task Creation Flow | Deployed | [PROJ-12-task-creation-flow.md](PROJ-12-task-creation-flow.md) | 2026-03-06 |
+| PROJ-13 | Seasonal Task Scheduling | Planned | [PROJ-13-seasonal-task-scheduling.md](PROJ-13-seasonal-task-scheduling.md) | 2026-03-07 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-13
+## Next Available ID: PROJ-14
 
 ## Build Order (Recommended)
 1. **PROJ-1** — Auth (Fundament für alles)
