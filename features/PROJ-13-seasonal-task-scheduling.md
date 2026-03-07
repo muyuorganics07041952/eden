@@ -64,7 +64,72 @@ Wiederkehrende Gartenaufgaben folgen oft einem saisonalen Rhythmus: "Rasen mähe
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Komponentenstruktur
+
+```
+GardenTaskSheet (erweitert)
++-- Name, Häufigkeit, Datum, Notizen (unverändert)
++-- [NEU] "Aktivzeitraum" Sektion
+    +-- Toggle "Saison aktivieren" (Switch)
+    +-- [wenn aktiv] "Aktiv von" Monats-Dropdown (Januar–Dezember)
+    +-- [wenn aktiv] "Aktiv bis" Monats-Dropdown (Januar–Dezember)
+    +-- [Hinweis] "Nov–Mär = jahrübergreifende Saison"
+
+CareTaskSheet (erweitert)
++-- Gleiche "Aktivzeitraum"-Sektion wie GardenTaskSheet
+
+Tasks Page (Aufgabenkarte, minimal erweitert)
++-- [NEU] Saison-Badge "Mär–Okt" neben Frequenz-Badge (nur wenn gesetzt)
+```
+
+### Datenmodell
+
+Zwei neue optionale Felder in **beiden** Tabellen (`garden_tasks` + `care_tasks`):
+
+```
+Jede Aufgabe hat (zusätzlich zu bestehenden Feldern):
+- Aktiv ab Monat  (1 = Januar, 12 = Dezember, optional)
+- Aktiv bis Monat (1 = Januar, 12 = Dezember, optional)
+
+Beide Felder sind entweder gleichzeitig gesetzt oder beide leer.
+Leer = keine Saison, ganzjährig aktiv (wie bisher).
+```
+
+### Saisonlogik (Backend)
+
+Wenn eine wiederkehrende saisonale Aufgabe erledigt wird:
+1. Nächstes Datum wird wie bisher berechnet (+ Intervall in Tagen)
+2. Liegt das neue Datum **außerhalb der Saison** → Datum auf **1. des Startmonats im nächsten Aktivzeitraum** setzen
+3. Liegt es **innerhalb der Saison** → normales Datum beibehalten
+
+Jahresübergreifende Saison (z.B. Nov–Mär): aktiv wenn `Monat >= Start` ODER `Monat <= Ende`
+
+### Technische Entscheidungen
+
+| Entscheidung | Empfehlung | Begründung |
+|---|---|---|
+| Wo speichern? | Neue Spalten in bestehenden Tabellen | Kein neues Schema; Saison ist ein Attribut der Aufgabe |
+| API-Filter | Kein neuer Filter nötig | Saisonale Aufgaben außerhalb ihrer Saison haben `next_due_date` in der Zukunft — bestehende Datum-Filter blenden sie automatisch aus |
+| Jahresübergreifende Saison | `start > end` = cross-year | Server prüft: `Monat >= start ODER Monat <= end` |
+| UI-Monatspicker | shadcn `<Select>` (bereits installiert) | Kein neues Package nötig |
+
+### Neue Dateien / Änderungen
+
+| Was | Typ |
+|---|---|
+| Supabase Migration: 2 Spalten zu `garden_tasks` + `care_tasks` | Neu |
+| `src/lib/types/care.ts` — `GardenTask` + `CareTask` erweitern | Klein |
+| `/api/garden-tasks/route.ts` — POST: Datum auf Saisonstart anpassen | Erweitert |
+| `/api/garden-tasks/[id]/route.ts` — PUT complete: Datum auf Saisonstart | Erweitert |
+| `/api/plants/[id]/care/route.ts` — POST: Datum auf Saisonstart anpassen | Erweitert |
+| `/api/plants/[id]/care/[taskId]/route.ts` — PUT complete: Datum auf Saisonstart | Erweitert |
+| `src/components/tasks/garden-task-sheet.tsx` — Saison-Picker hinzufügen | Erweitert |
+| `src/components/care/care-task-sheet.tsx` — Saison-Picker hinzufügen | Erweitert |
+| `src/app/(protected)/tasks/page.tsx` — Saison-Badge auf Karten | Minimal |
+
+### Neue Pakete
+Keine — shadcn `<Select>` bereits installiert.
 
 ## QA Test Results
 _To be added by /qa_
