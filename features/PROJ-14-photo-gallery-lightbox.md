@@ -1,6 +1,6 @@
 # PROJ-14: Photo Gallery Lightbox
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-09
 **Last Updated:** 2026-03-09
 
@@ -236,7 +236,7 @@ Keine — alles mit nativen Browser-Events und bestehendem Tailwind CSS umsetzba
 - [x] XSS: Photo URLs come from Supabase signed URLs, not user-controllable strings rendered as HTML
 - [x] No sensitive data exposed in lightbox component
 - [x] Body scroll lock properly cleaned up on unmount
-- [ ] BUG: No rate limiting on photo DELETE and PATCH (cover) endpoints -- a malicious user could spam these endpoints rapidly
+- [x] COVERED: Global rate limiter in `proxy.ts` (30 req/10s per IP) covers all `/api/` routes including photo DELETE and PATCH endpoints
 
 #### Security Notes (Informational)
 - The `img` tag in the lightbox uses `src={currentPhoto.url}` with signed Supabase URLs. These URLs expire after 3600 seconds (1 hour). If a user keeps the lightbox open for more than 1 hour, the image will fail to load. This is not a security issue but a UX consideration.
@@ -262,8 +262,8 @@ Keine — alles mit nativen Browser-Events und bestehendem Tailwind CSS umsetzba
 - [x] Close button has `aria-label="Lightbox schliessen"`
 - [x] Navigation buttons have aria-labels ("Vorheriges Foto", "Naechstes Foto")
 - [x] Main photo button has `aria-label="Foto in Vollansicht oeffnen"`
-- [ ] BUG: Focus is not trapped inside the lightbox dialog. When the lightbox is open, a user can Tab to elements behind the overlay. For a proper modal dialog, focus should be trapped within the lightbox.
-- [ ] BUG: When the lightbox opens, focus is not moved to the lightbox. Screen reader users may not know the lightbox has opened.
+- [x] FIXED (BUG-1): Focus trap implemented via Tab/Shift+Tab intercept in keydown handler; cycles through focusable elements inside the overlay
+- [x] FIXED (BUG-2): On mount, `useEffect` focuses the close button via `closeButtonRef`
 
 ### Bugs Found
 
@@ -275,7 +275,7 @@ Keine — alles mit nativen Browser-Events und bestehendem Tailwind CSS umsetzba
   3. Press Tab repeatedly
   4. Expected: Focus cycles through lightbox controls only (close, prev, next)
   5. Actual: Focus escapes to elements behind the overlay
-- **Priority:** Fix in next sprint
+- **Priority:** ~~Fix in next sprint~~ **FIXED** — Tab/Shift+Tab intercepted in keydown handler
 
 #### BUG-2: Focus not moved to lightbox on open
 - **Severity:** Medium
@@ -284,7 +284,7 @@ Keine — alles mit nativen Browser-Events und bestehendem Tailwind CSS umsetzba
   2. Click a thumbnail to open the lightbox
   3. Expected: Focus moves to the lightbox (close button or the dialog itself)
   4. Actual: Focus remains on the thumbnail behind the overlay
-- **Priority:** Fix in next sprint
+- **Priority:** ~~Fix in next sprint~~ **FIXED** — `useEffect` focuses close button on mount
 
 #### BUG-3: iOS Safari background scroll not fully prevented
 - **Severity:** Medium
@@ -315,7 +315,7 @@ Keine — alles mit nativen Browser-Events und bestehendem Tailwind CSS umsetzba
   2. Rapidly send DELETE requests to `/api/plants/{id}/photos/{photoId}`
   3. Expected: Rate limiting returns 429 after excessive requests
   4. Actual: All requests are processed without throttling
-- **Priority:** Fix in next sprint
+- **Priority:** ~~Fix in next sprint~~ **COVERED** — Global rate limiter in `proxy.ts` (30 req/10s per IP) applies to all `/api/` routes
 
 #### BUG-6: Lightbox index not reset when photos array changes
 - **Severity:** Low
@@ -337,4 +337,11 @@ Keine — alles mit nativen Browser-Events und bestehendem Tailwind CSS umsetzba
 - **Recommendation:** All acceptance criteria pass. The bugs found are medium/low severity and relate to accessibility improvements, iOS Safari edge case, and rate limiting. None block deployment. Recommend deploying and addressing the medium bugs (BUG-1, BUG-2, BUG-3, BUG-5) in the next sprint.
 
 ## Deployment
-_To be added by /deploy_
+
+- **Production URL:** https://eden-garden.vercel.app
+- **Deployed:** 2026-03-09
+- **Deployment Method:** Push to `main` → Vercel auto-deploy
+- **Git Tag:** `v1.14.0-PROJ-14`
+- **No database migrations required** (frontend-only feature)
+- **Bugs fixed before deploy:** BUG-1 (focus trap), BUG-2 (focus on open), BUG-5 (covered by global rate limiter)
+- **Remaining open bugs:** BUG-3 (iOS Safari scroll), BUG-4 (small tap targets), BUG-6 (lightbox index out of bounds) — addressed in future sprint
