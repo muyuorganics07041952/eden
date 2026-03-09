@@ -92,6 +92,9 @@ export async function PUT(
     const active_month_start = parsed.data.active_month_start ?? null
     const active_month_end = parsed.data.active_month_end ?? null
 
+    // Adjust due date if it falls outside the (new) season
+    const adjusted_due_date = adjustDateForSeason(next_due_date, active_month_start, active_month_end)
+
     const interval_days = frequency === 'custom'
       ? parsed.data.interval_days!
       : FREQUENCY_INTERVAL_MAP[frequency as Exclude<CareFrequency, 'custom'>]
@@ -102,7 +105,7 @@ export async function PUT(
         name,
         frequency,
         interval_days,
-        next_due_date,
+        next_due_date: adjusted_due_date,
         notes: notes ?? null,
         active_month_start,
         active_month_end,

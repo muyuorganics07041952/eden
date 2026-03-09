@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { isInSeason } from '@/lib/season'
 
 const rangeSchema = z.enum(['today', 'week', 'month'])
 
@@ -39,6 +40,8 @@ const TASK_SELECT = `
   next_due_date,
   notes,
   created_at,
+  active_month_start,
+  active_month_end,
   plants!inner ( name )
 `
 
@@ -70,7 +73,11 @@ export async function GET(request: NextRequest) {
 
     const filtered = (tasks ?? []).filter((t) => {
       const d = new Date((t.next_due_date as string) + 'T00:00:00')
-      return d.getMonth() + 1 === month
+      const taskMonth = d.getMonth() + 1
+      return (
+        taskMonth === month &&
+        isInSeason(month, t.active_month_start as number | null, t.active_month_end as number | null)
+      )
     })
 
     return NextResponse.json(flattenTasks(filtered as unknown as Record<string, unknown>[]))
@@ -115,5 +122,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Fehler beim Laden der Aufgaben.' }, { status: 500 })
   }
 
-  return NextResponse.json(flattenTasks(tasks as unknown as Record<string, unknown>[]))
+  const currentMonth = new Date().getMonth() + 1
+  const seasonFiltered = (tasks ?? []).filter((t) =>
+    isInSeason(currentMonth, t.active_month_start as number | null, t.active_month_end as number | null)
+  )
+
+  return NextResponse.json(flattenTasks(seasonFiltered as unknown as Record<string, unknown>[]))
 }
