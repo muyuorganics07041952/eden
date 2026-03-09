@@ -1,9 +1,11 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Leaf, Plus, X, Loader2, ImageIcon } from "lucide-react"
+import { Leaf, Plus, X, Loader2, ImageIcon, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { PhotoLightbox } from "@/components/plants/photo-lightbox"
 import type { PlantPhoto } from "@/lib/types/plants"
 
 interface PhotoGalleryProps {
@@ -20,6 +22,8 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
   const [error, setError] = useState<string | null>(null)
   const [settingCover, setSettingCover] = useState<string | null>(null)
   const [removingPhoto, setRemovingPhoto] = useState<string | null>(null)
+  const [managingMode, setManagingMode] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const coverPhoto = photos.find((p) => p.is_cover) ?? photos[0] ?? null
@@ -33,7 +37,7 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
     e.target.value = ""
 
     if (file.size > MAX_FILE_SIZE) {
-      setError("Die Datei ist zu groß. Maximal 5 MB erlaubt.")
+      setError("Die Datei ist zu gross. Maximal 5 MB erlaubt.")
       return
     }
 
@@ -106,16 +110,37 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
     }
   }
 
+  function handleThumbnailClick(index: number) {
+    if (managingMode) return
+    setLightboxIndex(index)
+  }
+
+  function handleMainPhotoClick() {
+    if (managingMode || !coverPhoto) return
+    const coverIndex = photos.findIndex((p) => p.id === coverPhoto.id)
+    setLightboxIndex(coverIndex >= 0 ? coverIndex : 0)
+  }
+
   return (
     <div className="space-y-3">
       {/* Main photo */}
       <div className="aspect-square relative rounded-lg overflow-hidden bg-primary/10">
         {coverPhoto ? (
-          <img
-            src={coverPhoto.url}
-            alt="Hauptfoto"
-            className="w-full h-full object-cover"
-          />
+          <button
+            type="button"
+            onClick={handleMainPhotoClick}
+            className={cn(
+              "w-full h-full block",
+              !managingMode && "cursor-pointer"
+            )}
+            aria-label="Foto in Vollansicht oeffnen"
+          >
+            <img
+              src={coverPhoto.url}
+              alt="Hauptfoto"
+              className="w-full h-full object-cover"
+            />
+          </button>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-primary/40">
             <Leaf className="h-16 w-16" />
@@ -127,83 +152,132 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
       {/* Thumbnail row */}
       {photos.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {photos.map((photo) => (
+          {photos.map((photo, index) => (
             <div
               key={photo.id}
-              className="relative group shrink-0"
+              className="relative shrink-0"
             >
               <button
                 type="button"
-                onClick={() => handleSetCover(photo.id)}
-                disabled={settingCover === photo.id}
+                onClick={() => handleThumbnailClick(index)}
+                disabled={managingMode}
                 className={cn(
                   "w-16 h-16 rounded-md overflow-hidden border-2 transition-all",
                   photo.is_cover || (photos.length === 1 && photos[0]?.id === photo.id)
                     ? "ring-2 ring-primary border-primary"
-                    : "border-transparent hover:border-primary/50"
+                    : "border-transparent hover:border-primary/50",
+                  !managingMode && "cursor-pointer"
                 )}
-                title="Als Hauptfoto setzen"
-                aria-label={`Foto als Hauptfoto setzen${photo.is_cover ? " (aktuelles Hauptfoto)" : ""}`}
+                aria-label={
+                  managingMode
+                    ? `Foto ${index + 1}${photo.is_cover ? " (Hauptfoto)" : ""}`
+                    : `Foto ${index + 1} in Vollansicht oeffnen`
+                }
               >
-                {settingCover === photo.id ? (
-                  <div className="w-full h-full flex items-center justify-center bg-muted">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                ) : (
-                  <img
-                    src={photo.url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                )}
+                <img
+                  src={photo.url}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
               </button>
-              {/* Remove button on hover */}
-              <button
-                type="button"
-                onClick={() => handleRemovePhoto(photo.id)}
-                disabled={removingPhoto === photo.id}
-                className="absolute -top-1.5 -right-1.5 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm"
-                aria-label="Foto entfernen"
-              >
-                {removingPhoto === photo.id ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <X className="h-3 w-3" />
-                )}
-              </button>
+
+              {/* Manage mode overlay */}
+              {managingMode && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+                  {/* Cover badge */}
+                  {photo.is_cover && (
+                    <Badge
+                      variant="secondary"
+                      className="absolute top-0.5 left-0.5 text-[10px] px-1 py-0 leading-tight"
+                    >
+                      Cover
+                    </Badge>
+                  )}
+
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(photo.id)}
+                    disabled={removingPhoto === photo.id}
+                    className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm"
+                    aria-label="Foto entfernen"
+                  >
+                    {removingPhoto === photo.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <X className="h-3 w-3" />
+                    )}
+                  </button>
+
+                  {/* Set as cover button (only if not already cover) */}
+                  {!photo.is_cover && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleSetCover(photo.id)}
+                      disabled={settingCover === photo.id}
+                      className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[9px] px-1.5 py-0 h-5 whitespace-nowrap"
+                    >
+                      {settingCover === photo.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "Hauptfoto"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Add photo button */}
-      {canAddMore && (
-        <>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleFileSelect}
-            className="hidden"
-            aria-label="Foto auswählen"
-          />
+      {/* Action buttons row */}
+      <div className="flex gap-2">
+        {/* Add photo button */}
+        {canAddMore && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileSelect}
+              className="hidden"
+              aria-label="Foto auswaehlen"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex-1"
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {uploading ? "Wird hochgeladen..." : "Foto hinzufuegen"}
+            </Button>
+          </>
+        )}
+
+        {/* Manage photos toggle button */}
+        {photos.length > 0 && (
           <Button
             type="button"
-            variant="outline"
+            variant={managingMode ? "default" : "outline"}
             size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="w-full"
+            onClick={() => setManagingMode(!managingMode)}
+            className={cn(!canAddMore && "flex-1")}
           >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            {uploading ? "Wird hochgeladen..." : "Foto hinzufügen"}
+            <Settings className="h-4 w-4" />
+            {managingMode ? "Fertig" : "Fotos verwalten"}
           </Button>
-        </>
-      )}
+        )}
+      </div>
 
       {/* Photo count info */}
       {photos.length > 0 && (
@@ -216,6 +290,15 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
       {/* Error message */}
       {error && (
         <p className="text-sm text-destructive">{error}</p>
+      )}
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <PhotoLightbox
+          photos={photos}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
     </div>
   )

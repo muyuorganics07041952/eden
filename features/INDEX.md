@@ -25,7 +25,7 @@
 | PROJ-11 | Standalone Garden Tasks | Deployed | [PROJ-11-standalone-garden-tasks.md](PROJ-11-standalone-garden-tasks.md) | 2026-03-06 |
 | PROJ-12 | Task Creation Flow | Deployed | [PROJ-12-task-creation-flow.md](PROJ-12-task-creation-flow.md) | 2026-03-06 |
 | PROJ-13 | Seasonal Task Scheduling | Deployed | [PROJ-13-seasonal-task-scheduling.md](PROJ-13-seasonal-task-scheduling.md) | 2026-03-07 |
-| PROJ-14 | Photo Gallery Lightbox | In Progress | [PROJ-14-photo-gallery-lightbox.md](PROJ-14-photo-gallery-lightbox.md) | 2026-03-09 |
+| PROJ-14 | Photo Gallery Lightbox | In Review | [PROJ-14-photo-gallery-lightbox.md](PROJ-14-photo-gallery-lightbox.md) | 2026-03-09 |
 
 <!-- Add features above this line -->
 
