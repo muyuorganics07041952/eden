@@ -24,9 +24,15 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
   const [removingPhoto, setRemovingPhoto] = useState<string | null>(null)
   const [managingMode, setManagingMode] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [mainPhotoIndex, setMainPhotoIndex] = useState(() => {
+    const idx = photos.findIndex((p) => p.is_cover)
+    return idx >= 0 ? idx : 0
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const touchStartXMain = useRef<number | null>(null)
 
-  const coverPhoto = photos.find((p) => p.is_cover) ?? photos[0] ?? null
+  const safeMainIndex = Math.min(mainPhotoIndex, Math.max(0, photos.length - 1))
+  const currentMainPhoto = photos[safeMainIndex] ?? null
   const canAddMore = photos.length < MAX_PHOTOS
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -110,22 +116,41 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
     }
   }
 
+  function handleMainTouchStart(e: React.TouchEvent) {
+    touchStartXMain.current = e.touches[0].clientX
+  }
+
+  function handleMainTouchEnd(e: React.TouchEvent) {
+    if (touchStartXMain.current === null) return
+    const diff = touchStartXMain.current - e.changedTouches[0].clientX
+    if (diff > 50 && safeMainIndex < photos.length - 1) {
+      setMainPhotoIndex(safeMainIndex + 1)
+    } else if (diff < -50 && safeMainIndex > 0) {
+      setMainPhotoIndex(safeMainIndex - 1)
+    }
+    touchStartXMain.current = null
+  }
+
   function handleThumbnailClick(index: number) {
     if (managingMode) return
+    setMainPhotoIndex(index)
     setLightboxIndex(index)
   }
 
   function handleMainPhotoClick() {
-    if (managingMode || !coverPhoto) return
-    const coverIndex = photos.findIndex((p) => p.id === coverPhoto.id)
-    setLightboxIndex(coverIndex >= 0 ? coverIndex : 0)
+    if (managingMode || !currentMainPhoto) return
+    setLightboxIndex(safeMainIndex)
   }
 
   return (
     <div className="space-y-3">
       {/* Main photo */}
-      <div className="aspect-square relative rounded-lg overflow-hidden bg-primary/10">
-        {coverPhoto ? (
+      <div
+        className="aspect-square relative rounded-lg overflow-hidden bg-primary/10"
+        onTouchStart={handleMainTouchStart}
+        onTouchEnd={handleMainTouchEnd}
+      >
+        {currentMainPhoto ? (
           <button
             type="button"
             onClick={handleMainPhotoClick}
@@ -136,7 +161,7 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
             aria-label="Foto in Vollansicht oeffnen"
           >
             <img
-              src={coverPhoto.url}
+              src={currentMainPhoto.url}
               alt="Hauptfoto"
               className="w-full h-full object-cover"
             />
@@ -163,7 +188,7 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
                 disabled={managingMode}
                 className={cn(
                   "w-16 h-16 rounded-md overflow-hidden border-2 transition-all",
-                  photo.is_cover || (photos.length === 1 && photos[0]?.id === photo.id)
+                  index === safeMainIndex
                     ? "ring-2 ring-primary border-primary"
                     : "border-transparent hover:border-primary/50",
                   !managingMode && "cursor-pointer"

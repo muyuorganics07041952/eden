@@ -27,6 +27,7 @@ Eine progressive Web-App (PWA) für Gartenbegeisterte, die ihre Pflanzen digital
 | P2 | Task Creation Flow | Planned |
 | P2 | Seasonal Task Scheduling | Planned |
 | P2 | Photo Gallery Lightbox | Planned |
+| P2 | Swipe-Navigation Standardansicht Fotogalerie | Planned |
 
 ## Success Metrics
 - **Onboarding:** 60% der neuen Nutzer legen mindestens 3 Pflanzen an

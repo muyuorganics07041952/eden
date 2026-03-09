@@ -26,10 +26,11 @@
 | PROJ-12 | Task Creation Flow | Deployed | [PROJ-12-task-creation-flow.md](PROJ-12-task-creation-flow.md) | 2026-03-06 |
 | PROJ-13 | Seasonal Task Scheduling | Deployed | [PROJ-13-seasonal-task-scheduling.md](PROJ-13-seasonal-task-scheduling.md) | 2026-03-07 |
 | PROJ-14 | Photo Gallery Lightbox | Deployed | [PROJ-14-photo-gallery-lightbox.md](PROJ-14-photo-gallery-lightbox.md) | 2026-03-09 |
+| PROJ-15 | Swipe-Navigation Standardansicht Fotogalerie | Deployed | [PROJ-15-photo-gallery-swipe-standard.md](PROJ-15-photo-gallery-swipe-standard.md) | 2026-03-09 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-15
+## Next Available ID: PROJ-16
 
 ## Build Order (Recommended)
 1. **PROJ-1** — Auth (Fundament für alles)
