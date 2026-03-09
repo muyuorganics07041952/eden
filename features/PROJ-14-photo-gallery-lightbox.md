@@ -73,7 +73,74 @@ Die aktuelle Fotogalerie auf der Pflanzen-Detailseite erlaubt Upload, Thumbnail-
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Komponentenstruktur
+
+```
+PlantDetailPage (unverändert)
++-- PhotoGallery (stark erweitert)
+    +-- Hauptfoto (großes Bild)
+    |   +-- Klick öffnet Lightbox [nur Normal-Modus]
+    |
+    +-- Thumbnail-Leiste
+    |   +-- [Normal-Modus] Klick → Lightbox öffnen
+    |   +-- [Verwalten-Modus] Jedes Thumbnail zeigt:
+    |       +-- × Löschen-Button
+    |       +-- "Hauptfoto"-Button (außer bei aktuellem Cover)
+    |       +-- "Cover"-Badge (beim aktuellen Hauptfoto)
+    |
+    +-- "Foto hinzufügen"-Button (unverändert)
+    +-- "Fotos verwalten" / "Fertig"-Toggle-Button [NEU]
+    |
+    +-- PhotoLightbox [NEU — nur sichtbar wenn ein Foto geöffnet ist]
+        +-- Vollbild-Overlay (dunkler Hintergrund, Klick schließt)
+        +-- Foto (maximal groß, Seitenverhältnis erhalten)
+        +-- ← Pfeil-Button (ausgeblendet beim ersten Foto)
+        +-- → Pfeil-Button (ausgeblendet beim letzten Foto)
+        +-- × Schließen-Button (oben rechts)
+        +-- Foto-Indikator "2 / 4" (ausgeblendet bei nur 1 Foto)
+```
+
+### Datenmodell
+
+Kein neues Datenmodell notwendig. Alle Daten kommen aus dem bestehenden `PlantPhoto`-Typ:
+
+```
+Jedes Foto hat (unverändert):
+- Eindeutige ID
+- URL (signierter Supabase-Link)
+- is_cover (ob es das Hauptfoto ist)
+- plant_id und user_id
+
+Kein neues Backend — alle bestehenden API-Endpunkte bleiben unverändert.
+```
+
+Zwei neue **UI-Zustände** werden lokal in `PhotoGallery` verwaltet:
+
+```
+managingMode: ja/nein — ob der Verwalten-Modus aktiv ist
+lightboxIndex: Nummer des geöffneten Fotos (oder "kein Foto geöffnet")
+```
+
+### Technische Entscheidungen
+
+| Entscheidung | Empfehlung | Begründung |
+|---|---|---|
+| Lightbox-Overlay | Eigenes `fixed`-Overlay (kein shadcn Dialog) | Dialog hat Padding-Grenzen; für Vollbild-Fotos brauchen wir ein reines schwarzes Overlay ohne Einschränkungen |
+| Swipe-Erkennung | Native Browser-Touch-Events | Kein neues Paket nötig — einfaches "Startposition merken, Endposition vergleichen" |
+| Keyboard-Navigation | Native `keydown`-Event im Lightbox-Component | Standardmuster, kein extra Paket |
+| Verwalten-Modus | Lokaler Boolean-State in PhotoGallery | Kein Server-State; rein visuell |
+| Hintergrund-Klick | Prüfen ob Klick direkt auf Overlay traf (nicht auf Foto) | Verhindert Schließen beim Klick auf das Foto selbst |
+
+### Neue Dateien / Änderungen
+
+| Was | Typ |
+|---|---|
+| `src/components/plants/photo-lightbox.tsx` | Neu |
+| `src/components/plants/photo-gallery.tsx` — Verwalten-Toggle, Lightbox-Trigger, Thumbnail-Logik umbauen | Erweitert |
+
+### Neue Pakete
+Keine — alles mit nativen Browser-Events und bestehendem Tailwind CSS umsetzbar.
 
 ## QA Test Results
 _To be added by /qa_
