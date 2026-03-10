@@ -27,10 +27,11 @@
 | PROJ-13 | Seasonal Task Scheduling | Deployed | [PROJ-13-seasonal-task-scheduling.md](PROJ-13-seasonal-task-scheduling.md) | 2026-03-07 |
 | PROJ-14 | Photo Gallery Lightbox | Deployed | [PROJ-14-photo-gallery-lightbox.md](PROJ-14-photo-gallery-lightbox.md) | 2026-03-09 |
 | PROJ-15 | Swipe-Navigation Standardansicht Fotogalerie | Deployed | [PROJ-15-photo-gallery-swipe-standard.md](PROJ-15-photo-gallery-swipe-standard.md) | 2026-03-09 |
+| PROJ-16 | Pflanzen-Liste Suche & Filter | In Progress | [PROJ-16-plant-list-search-filter.md](PROJ-16-plant-list-search-filter.md) | 2026-03-10 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-16
+## Next Available ID: PROJ-17
 
 ## Build Order (Recommended)
 1. **PROJ-1** — Auth (Fundament für alles)
