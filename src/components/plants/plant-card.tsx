@@ -54,6 +54,20 @@ export function PlantCard({ plant }: PlantCardProps) {
             <span className="truncate">{plant.location}</span>
           </p>
         )}
+        {plant.tags && plant.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {plant.tags.slice(0, 2).map((tag) => (
+              <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
+                {tag}
+              </Badge>
+            ))}
+            {plant.tags.length > 2 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                +{plant.tags.length - 2}
+              </Badge>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

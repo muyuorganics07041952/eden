@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { PlantIdentifySection, type IdentifySuggestion } from "@/components/plants/plant-identify-section"
+import { TagInput } from "@/components/plants/tag-input"
 import type { Plant } from "@/lib/types/plants"
 
 const plantFormSchema = z.object({
@@ -34,6 +35,7 @@ const plantFormSchema = z.object({
   location: z.string().max(100).optional().or(z.literal("")),
   planted_at: z.string().optional().or(z.literal("")),
   notes: z.string().max(1000, "Maximal 1000 Zeichen").optional().or(z.literal("")),
+  tags: z.array(z.string().trim().max(50)).max(10),
 })
 
 type PlantFormValues = z.infer<typeof plantFormSchema>
@@ -56,6 +58,7 @@ export function AddPlantSheet({ open, onOpenChange, onSuccess }: AddPlantSheetPr
       location: "",
       planted_at: "",
       notes: "",
+      tags: [],
     },
   })
 
@@ -90,11 +93,12 @@ export function AddPlantSheet({ open, onOpenChange, onSuccess }: AddPlantSheetPr
 
   async function onSubmit(values: PlantFormValues) {
     try {
-      const body: Record<string, string> = { name: values.name }
+      const body: Record<string, string | string[]> = { name: values.name }
       if (values.species) body.species = values.species
       if (values.location) body.location = values.location
       if (values.planted_at) body.planted_at = values.planted_at
       if (values.notes) body.notes = values.notes
+      if (values.tags && values.tags.length > 0) body.tags = values.tags
 
       // 1. Create the plant
       const res = await fetch("/api/plants", {
@@ -208,6 +212,24 @@ export function AddPlantSheet({ open, onOpenChange, onSuccess }: AddPlantSheetPr
                   <FormLabel>Pflanzdatum</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags</FormLabel>
+                  <FormControl>
+                    <TagInput
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      disabled={isDisabled}
+                      placeholder="z.B. Gemuese, Kraeuter (Enter oder Komma)"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

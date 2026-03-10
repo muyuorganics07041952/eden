@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { TagInput } from "@/components/plants/tag-input"
 import type { Plant } from "@/lib/types/plants"
 
 const plantFormSchema = z.object({
@@ -32,6 +33,7 @@ const plantFormSchema = z.object({
   location: z.string().max(100).optional().or(z.literal("")),
   planted_at: z.string().optional().or(z.literal("")),
   notes: z.string().max(1000, "Maximal 1000 Zeichen").optional().or(z.literal("")),
+  tags: z.array(z.string().trim().max(50)).max(10),
 })
 
 type PlantFormValues = z.infer<typeof plantFormSchema>
@@ -52,6 +54,7 @@ export function EditPlantSheet({ plant, open, onOpenChange, onSuccess }: EditPla
       location: plant.location ?? "",
       planted_at: plant.planted_at ?? "",
       notes: plant.notes ?? "",
+      tags: plant.tags ?? [],
     },
   })
 
@@ -63,6 +66,7 @@ export function EditPlantSheet({ plant, open, onOpenChange, onSuccess }: EditPla
         location: plant.location ?? "",
         planted_at: plant.planted_at ?? "",
         notes: plant.notes ?? "",
+        tags: plant.tags ?? [],
       })
     }
   }, [open, plant, form])
@@ -71,11 +75,12 @@ export function EditPlantSheet({ plant, open, onOpenChange, onSuccess }: EditPla
 
   async function onSubmit(values: PlantFormValues) {
     try {
-      const body: Record<string, string | null> = { name: values.name }
+      const body: Record<string, string | string[] | null> = { name: values.name }
       body.species = values.species || null
       body.location = values.location || null
       body.planted_at = values.planted_at || null
       body.notes = values.notes || null
+      body.tags = values.tags ?? []
 
       const res = await fetch(`/api/plants/${plant.id}`, {
         method: "PATCH",
@@ -153,6 +158,24 @@ export function EditPlantSheet({ plant, open, onOpenChange, onSuccess }: EditPla
                   <FormLabel>Pflanzdatum</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags</FormLabel>
+                  <FormControl>
+                    <TagInput
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      disabled={isSubmitting}
+                      placeholder="z.B. Gemuese, Kraeuter (Enter oder Komma)"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
