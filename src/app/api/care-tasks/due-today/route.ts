@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -9,7 +9,11 @@ export async function GET() {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
   }
 
-  const todayISO = new Date().toISOString().split('T')[0]
+  const { searchParams } = new URL(request.url)
+  const dateParam = searchParams.get('date')
+  const todayISO = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+    ? dateParam
+    : new Date().toISOString().split('T')[0]
 
   const { data: tasks, error } = await supabase
     .from('care_tasks')
