@@ -8,6 +8,7 @@ const createPlantSchema = z.object({
   location: z.string().max(100).optional().nullable(),
   planted_at: z.string().optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  tags: z.array(z.string().trim().max(50)).max(10).optional().default([]),
 })
 
 export async function GET(request: Request) {
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
   const { data: plants, error } = await supabase
     .from('plants')
     .select(`
-      id, user_id, name, species, location, planted_at, notes, created_at, updated_at,
+      id, user_id, name, species, location, planted_at, notes, tags, created_at, updated_at,
       plant_photos (id, plant_id, storage_path, is_cover, created_at)
     `)
     .eq('user_id', user.id)
@@ -80,9 +81,22 @@ export async function POST(request: Request) {
     )
   }
 
+  // Process tags: trim, filter empty, deduplicate case-insensitively
+  const rawTags = parsed.data.tags ?? []
+  const seen = new Set<string>()
+  const processedTags = rawTags
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+    .filter((t) => {
+      const lower = t.toLowerCase()
+      if (seen.has(lower)) return false
+      seen.add(lower)
+      return true
+    })
+
   const { data: plant, error } = await supabase
     .from('plants')
-    .insert({ ...parsed.data, user_id: user.id })
+    .insert({ ...parsed.data, tags: processedTags, user_id: user.id })
     .select()
     .single()
 

@@ -8,6 +8,7 @@ const updatePlantSchema = z.object({
   location: z.string().max(100).nullable().optional(),
   planted_at: z.string().nullable().optional(),
   notes: z.string().max(1000).nullable().optional(),
+  tags: z.array(z.string().trim().max(50)).max(10).optional(),
 })
 
 export async function GET(
@@ -25,7 +26,7 @@ export async function GET(
   const { data: plant, error } = await supabase
     .from('plants')
     .select(`
-      id, user_id, name, species, location, planted_at, notes, created_at, updated_at,
+      id, user_id, name, species, location, planted_at, notes, tags, created_at, updated_at,
       plant_photos (id, plant_id, storage_path, is_cover, created_at)
     `)
     .eq('id', id)
@@ -76,9 +77,24 @@ export async function PATCH(
     )
   }
 
+  // Process tags if provided: trim, filter empty, deduplicate case-insensitively
+  const updatePayload = { ...parsed.data }
+  if (updatePayload.tags !== undefined) {
+    const seen = new Set<string>()
+    updatePayload.tags = updatePayload.tags
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0)
+      .filter((t) => {
+        const lower = t.toLowerCase()
+        if (seen.has(lower)) return false
+        seen.add(lower)
+        return true
+      })
+  }
+
   const { data: plant, error } = await supabase
     .from('plants')
-    .update(parsed.data)
+    .update(updatePayload)
     .eq('id', id)
     .eq('user_id', user.id)
     .select()

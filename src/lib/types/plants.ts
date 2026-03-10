@@ -15,6 +15,7 @@ export type Plant = {
   location: string | null
   planted_at: string | null
   notes: string | null
+  tags: string[]
   created_at: string
   updated_at: string
   plant_photos?: PlantPhoto[]
