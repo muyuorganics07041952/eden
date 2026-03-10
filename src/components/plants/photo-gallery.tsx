@@ -30,6 +30,7 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const touchStartXMain = useRef<number | null>(null)
+  const didSwipeMain = useRef(false)
 
   const safeMainIndex = Math.min(mainPhotoIndex, Math.max(0, photos.length - 1))
   const currentMainPhoto = photos[safeMainIndex] ?? null
@@ -118,11 +119,15 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
 
   function handleMainTouchStart(e: React.TouchEvent) {
     touchStartXMain.current = e.touches[0].clientX
+    didSwipeMain.current = false
   }
 
   function handleMainTouchEnd(e: React.TouchEvent) {
     if (touchStartXMain.current === null) return
     const diff = touchStartXMain.current - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 10) {
+      didSwipeMain.current = true
+    }
     if (diff > 50 && safeMainIndex < photos.length - 1) {
       setMainPhotoIndex(safeMainIndex + 1)
     } else if (diff < -50 && safeMainIndex > 0) {
@@ -134,26 +139,27 @@ export function PhotoGallery({ plantId, photos, onPhotosChange }: PhotoGalleryPr
   function handleThumbnailClick(index: number) {
     if (managingMode) return
     setMainPhotoIndex(index)
-    setLightboxIndex(index)
   }
 
   function handleMainPhotoClick() {
     if (managingMode || !currentMainPhoto) return
+    if (didSwipeMain.current) {
+      didSwipeMain.current = false
+      return
+    }
     setLightboxIndex(safeMainIndex)
   }
 
   return (
     <div className="space-y-3">
       {/* Main photo */}
-      <div
-        className="aspect-square relative rounded-lg overflow-hidden bg-primary/10"
-        onTouchStart={handleMainTouchStart}
-        onTouchEnd={handleMainTouchEnd}
-      >
+      <div className="aspect-square relative rounded-lg overflow-hidden bg-primary/10">
         {currentMainPhoto ? (
           <button
             type="button"
             onClick={handleMainPhotoClick}
+            onTouchStart={handleMainTouchStart}
+            onTouchEnd={handleMainTouchEnd}
             className={cn(
               "w-full h-full block",
               !managingMode && "cursor-pointer"
