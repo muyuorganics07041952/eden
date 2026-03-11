@@ -28,7 +28,7 @@
 | PROJ-14 | Photo Gallery Lightbox | Deployed | [PROJ-14-photo-gallery-lightbox.md](PROJ-14-photo-gallery-lightbox.md) | 2026-03-09 |
 | PROJ-15 | Swipe-Navigation Standardansicht Fotogalerie | Deployed | [PROJ-15-photo-gallery-swipe-standard.md](PROJ-15-photo-gallery-swipe-standard.md) | 2026-03-09 |
 | PROJ-16 | Pflanzen-Liste Suche & Filter | Deployed | [PROJ-16-plant-list-search-filter.md](PROJ-16-plant-list-search-filter.md) | 2026-03-10 |
-| PROJ-17 | Aufgaben-Seite Verbesserungen | In Progress | [PROJ-17-tasks-page-improvements.md](PROJ-17-tasks-page-improvements.md) | 2026-03-11 |
+| PROJ-17 | Aufgaben-Seite Verbesserungen | Deployed | [PROJ-17-tasks-page-improvements.md](PROJ-17-tasks-page-improvements.md) | 2026-03-11 |
 
 <!-- Add features above this line -->
 
