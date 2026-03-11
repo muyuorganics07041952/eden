@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   CheckSquare,
@@ -13,6 +13,8 @@ import {
   Leaf,
   Plus,
   Shovel,
+  MoreVertical,
+  Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,18 +31,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { FREQUENCY_LABELS, GARDEN_FREQUENCY_LABELS } from "@/lib/types/care"
-import type { TodayCareTask, CareFrequency, GardenTask, GardenTaskFrequency } from "@/lib/types/care"
+import type { TodayCareTask, CareFrequency, GardenTask, GardenTaskFrequency, CareTask } from "@/lib/types/care"
 import { GardenTaskSheet } from "@/components/tasks/garden-task-sheet"
 import { TaskTypePicker } from "@/components/tasks/task-type-picker"
 import { CareTaskSheet } from "@/components/care/care-task-sheet"
-import type { CareTask } from "@/lib/types/care"
+import { TaskFilterBar, type StatusFilter } from "@/components/tasks/task-filter-bar"
 
-const MONTH_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+const MONTH_SHORT = ['Jan', 'Feb', 'M\u00e4r', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
 
 function getSeasonBadgeLabel(start: number, end: number): string {
-  return `${MONTH_SHORT[start - 1]}–${MONTH_SHORT[end - 1]}`
+  return `${MONTH_SHORT[start - 1]}\u2013${MONTH_SHORT[end - 1]}`
 }
 
 type FilterRange = "month" | "week" | "today"
@@ -54,7 +62,7 @@ const FILTER_LABELS: Record<FilterRange, string> = {
 const MONTHS = [
   { num: 1,  letter: "J", name: "Januar" },
   { num: 2,  letter: "F", name: "Februar" },
-  { num: 3,  letter: "M", name: "März" },
+  { num: 3,  letter: "M", name: "M\u00e4rz" },
   { num: 4,  letter: "A", name: "April" },
   { num: 5,  letter: "M", name: "Mai" },
   { num: 6,  letter: "J", name: "Juni" },
@@ -98,8 +106,20 @@ export default function TasksPage() {
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [careSheetOpen, setCareSheetOpen] = useState(false)
   const [careSheetPlantId, setCareSheetPlantId] = useState<string | null>(null)
-  // Preserve plantId during close animation so the sheet doesn't unmount prematurely
   const lastCareSheetPlantIdRef = useRef<string | null>(null)
+
+  // --- PROJ-17: New filter state ---
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeStatuses, setActiveStatuses] = useState<Set<StatusFilter>>(new Set())
+
+  // --- PROJ-17: Edit/delete state for care tasks ---
+  const [editingCareTask, setEditingCareTask] = useState<TodayCareTask | null>(null)
+  const [deletingCareTask, setDeletingCareTask] = useState<TodayCareTask | null>(null)
+  const [isDeletingCare, setIsDeletingCare] = useState(false)
+
+  // --- PROJ-17: Delete state for garden tasks (via menu) ---
+  const [deletingGardenTask, setDeletingGardenTask] = useState<GardenTask | null>(null)
+  const [isDeletingGarden, setIsDeletingGarden] = useState(false)
 
   const fetchTasks = useCallback(async (filterRange: FilterRange, monthNum?: number) => {
     setLoading(true)
@@ -138,14 +158,83 @@ export default function TasksPage() {
     fetchTasks(range, selectedMonth ?? undefined)
   }, [fetchTasks, range, selectedMonth])
 
+  // --- PROJ-17: Reset filters on range/month change ---
+  function resetFilters() {
+    setSearchQuery("")
+    setActiveStatuses(new Set())
+  }
+
   function handleRangeChange(value: string) {
     setSelectedMonth(null)
     setRange(value as FilterRange)
+    resetFilters()
   }
 
   function handleMonthClick(monthNum: number) {
     setSelectedMonth((prev) => prev === monthNum ? null : monthNum)
+    resetFilters()
   }
+
+  // --- PROJ-17: Filter toggle handlers ---
+  function handleToggleStatus(status: StatusFilter) {
+    setActiveStatuses((prev) => {
+      const next = new Set(prev)
+      if (next.has(status)) {
+        next.delete(status)
+      } else {
+        next.add(status)
+      }
+      return next
+    })
+  }
+
+  // --- PROJ-17: Computed filter data ---
+  const availableStatuses = useMemo(() => {
+    const statuses = new Set<StatusFilter>()
+    for (const t of tasks) {
+      const s = getDueStatus(t.next_due_date)
+      if (s === "overdue" || s === "upcoming") statuses.add(s)
+    }
+    for (const t of gardenTasks) {
+      const s = getDueStatus(t.next_due_date)
+      if (s === "overdue" || s === "upcoming") statuses.add(s)
+    }
+    return statuses
+  }, [tasks, gardenTasks])
+
+  const isFilterActive = searchQuery.length > 0 || activeStatuses.size > 0
+
+  // --- PROJ-17: Filtered tasks ---
+  const filteredCareTasks = useMemo(() => {
+    let result = tasks
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(
+        (t) => t.name.toLowerCase().includes(q) || t.plant_name.toLowerCase().includes(q)
+      )
+    }
+    if (activeStatuses.size > 0) {
+      result = result.filter((t) => activeStatuses.has(getDueStatus(t.next_due_date) as StatusFilter))
+    }
+    return result
+  }, [tasks, searchQuery, activeStatuses])
+
+  const filteredGardenTasks = useMemo(() => {
+    let result = gardenTasks
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((t) => t.name.toLowerCase().includes(q))
+    }
+    if (activeStatuses.size > 0) {
+      result = result.filter((t) => activeStatuses.has(getDueStatus(t.next_due_date) as StatusFilter))
+    }
+    return result
+  }, [gardenTasks, searchQuery, activeStatuses])
+
+  const totalTaskCount = tasks.length + gardenTasks.length
+  const filteredTotalCount = filteredCareTasks.length + filteredGardenTasks.length
+
+  // --- Complete handlers ---
 
   function handleCompleteClick(task: TodayCareTask) {
     const status = getDueStatus(task.next_due_date)
@@ -183,7 +272,6 @@ export default function TasksPage() {
   function handleGardenCompleteClick(task: GardenTask) {
     const status = getDueStatus(task.next_due_date)
     if (status === "overdue") {
-      // For one-time overdue tasks, just delete them (no "original rhythm")
       if (task.frequency === "once") {
         doGardenComplete(task, "today")
       } else {
@@ -204,7 +292,6 @@ export default function TasksPage() {
         body: JSON.stringify({ action: "complete", mode }),
       })
       if (!res.ok) throw new Error("Fehler")
-      // Remove from list (one-time gets deleted, recurring gets new date outside range)
       setGardenTasks((prev) => prev.filter((t) => t.id !== task.id))
     } catch {
       // Keep the task in the list on error
@@ -224,7 +311,6 @@ export default function TasksPage() {
 
   function handleGardenSheetSuccess(task: GardenTask | null, action: "created" | "updated" | "deleted") {
     if (action === "created" && task) {
-      // Re-fetch to get correct filtering
       fetchTasks(range, selectedMonth ?? undefined)
     } else if (action === "updated" && task) {
       setGardenTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
@@ -232,6 +318,69 @@ export default function TasksPage() {
       setGardenTasks((prev) => prev.filter((t) => t.id !== editingGardenTask?.id))
     }
     setEditingGardenTask(null)
+  }
+
+  // --- PROJ-17: Garden task delete via menu ---
+  async function handleDeleteGardenTask() {
+    if (!deletingGardenTask) return
+    setIsDeletingGarden(true)
+    try {
+      const res = await fetch(`/api/garden-tasks/${deletingGardenTask.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok && res.status !== 204) throw new Error("Fehler")
+      setGardenTasks((prev) => prev.filter((t) => t.id !== deletingGardenTask.id))
+    } catch {
+      // silently fail
+    } finally {
+      setIsDeletingGarden(false)
+      setDeletingGardenTask(null)
+    }
+  }
+
+  // --- PROJ-17: Care task edit/delete via menu ---
+  function handleEditCareTask(task: TodayCareTask) {
+    setEditingCareTask(task)
+    lastCareSheetPlantIdRef.current = task.plant_id
+    setCareSheetPlantId(task.plant_id)
+    setCareSheetOpen(true)
+  }
+
+  function handleCareEditSuccess(savedTask: CareTask) {
+    setCareSheetOpen(false)
+    setCareSheetPlantId(null)
+    if (editingCareTask) {
+      // Update or remove the task in place
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === savedTask.id
+            ? { ...savedTask, plant_name: editingCareTask.plant_name }
+            : t
+        )
+      )
+      setEditingCareTask(null)
+    } else {
+      // New task created — refetch
+      fetchTasks(range, selectedMonth ?? undefined)
+    }
+  }
+
+  async function handleDeleteCareTask() {
+    if (!deletingCareTask) return
+    setIsDeletingCare(true)
+    try {
+      const res = await fetch(
+        `/api/plants/${deletingCareTask.plant_id}/care/${deletingCareTask.id}`,
+        { method: "DELETE" }
+      )
+      if (!res.ok && res.status !== 204) throw new Error("Fehler")
+      setTasks((prev) => prev.filter((t) => t.id !== deletingCareTask.id))
+    } catch {
+      // silently fail
+    } finally {
+      setIsDeletingCare(false)
+      setDeletingCareTask(null)
+    }
   }
 
   function handleOpenCreateSheet() {
@@ -244,19 +393,14 @@ export default function TasksPage() {
   }
 
   function handlePickerSelectPlant(plantId: string) {
+    setEditingCareTask(null)
     lastCareSheetPlantIdRef.current = plantId
     setCareSheetPlantId(plantId)
     setCareSheetOpen(true)
   }
 
-  function handleCareTaskSuccess(_task: CareTask) {
-    setCareSheetOpen(false)
-    setCareSheetPlantId(null)
-    fetchTasks(range, selectedMonth ?? undefined)
-  }
-
-  // Group tasks by plant
-  const grouped = tasks.reduce<Record<string, { plantName: string; plantId: string; tasks: TodayCareTask[] }>>(
+  // Group filtered tasks by plant
+  const grouped = filteredCareTasks.reduce<Record<string, { plantName: string; plantId: string; tasks: TodayCareTask[] }>>(
     (acc, task) => {
       if (!acc[task.plant_id]) {
         acc[task.plant_id] = {
@@ -283,7 +427,6 @@ export default function TasksPage() {
   const overdueCount = tasks.filter((t) => getDueStatus(t.next_due_date) === "overdue").length
   const overdueGardenCount = gardenTasks.filter((t) => getDueStatus(t.next_due_date) === "overdue").length
   const totalOverdueCount = overdueCount + overdueGardenCount
-  const totalTaskCount = tasks.length + gardenTasks.length
 
   return (
     <div className="space-y-6">
@@ -292,14 +435,14 @@ export default function TasksPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
             <CheckSquare className="h-6 w-6 text-primary" />
-            Fällige Aufgaben
+            F\u00e4llige Aufgaben
           </h1>
           {!loading && !error && totalTaskCount > 0 && (
             <p className="text-sm text-muted-foreground mt-1">
-              {totalTaskCount} Aufgabe{totalTaskCount !== 1 ? "n" : ""} fällig
+              {totalTaskCount} Aufgabe{totalTaskCount !== 1 ? "n" : ""} f\u00e4llig
               {totalOverdueCount > 0 && (
                 <span className="text-orange-600">
-                  {" "}({totalOverdueCount} überfällig)
+                  {" "}({totalOverdueCount} \u00fcberf\u00e4llig)
                 </span>
               )}
             </p>
@@ -308,10 +451,10 @@ export default function TasksPage() {
         <Button
           size="sm"
           onClick={handleOpenCreateSheet}
-          aria-label="Aufgabe hinzufügen"
+          aria-label="Aufgabe hinzuf\u00fcgen"
         >
           <Plus className="h-4 w-4" />
-          Aufgabe hinzufügen
+          Aufgabe hinzuf\u00fcgen
         </Button>
       </div>
 
@@ -325,7 +468,7 @@ export default function TasksPage() {
       </Tabs>
 
       {/* Month Picker */}
-      <div className="flex gap-1.5 flex-wrap" aria-label="Monat auswählen">
+      <div className="flex gap-1.5 flex-wrap" aria-label="Monat ausw\u00e4hlen">
         {MONTHS.map((m) => (
           <button
             key={m.num}
@@ -343,6 +486,21 @@ export default function TasksPage() {
         ))}
       </div>
 
+      {/* PROJ-17: Task Filter Bar */}
+      {!loading && !error && totalTaskCount > 0 && (
+        <TaskFilterBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          activeStatuses={activeStatuses}
+          onToggleStatus={handleToggleStatus}
+          availableStatuses={availableStatuses}
+          filteredCount={filteredTotalCount}
+          totalCount={totalTaskCount}
+          isFilterActive={isFilterActive}
+          onResetFilters={resetFilters}
+        />
+      )}
+
       {/* Content */}
       {loading ? (
         <TasksPageSkeleton />
@@ -358,17 +516,31 @@ export default function TasksPage() {
         </div>
       ) : totalTaskCount === 0 ? (
         <AllDoneState range={range} selectedMonth={selectedMonth} onGoToPlants={() => router.push("/plants")} />
+      ) : isFilterActive && filteredTotalCount === 0 ? (
+        /* PROJ-17: No filter results state */
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="bg-muted p-4 rounded-full mb-4">
+            <Search className="h-10 w-10 text-muted-foreground/60" />
+          </div>
+          <h2 className="text-lg font-medium">Keine Aufgaben gefunden</h2>
+          <p className="text-sm text-muted-foreground mt-1 mb-4 max-w-xs">
+            Keine Aufgaben entsprechen den aktiven Filtern.
+          </p>
+          <Button variant="outline" onClick={resetFilters}>
+            Filter zur\u00fccksetzen
+          </Button>
+        </div>
       ) : (
         <div className="space-y-8">
           {/* Garden tasks section */}
-          {gardenTasks.length > 0 && (
+          {filteredGardenTasks.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Shovel className="h-4 w-4" />
                 Garten
               </div>
               <div className="space-y-2">
-                {gardenTasks.map((task) => {
+                {filteredGardenTasks.map((task) => {
                   const status = getDueStatus(task.next_due_date)
                   const isCompleting = completingIds.has(task.id)
                   return (
@@ -428,7 +600,7 @@ export default function TasksPage() {
                               </Badge>
                             )}
                             {status === "upcoming" && (
-                              <span>Fällig: {formatDate(task.next_due_date)}</span>
+                              <span>F\u00e4llig: {formatDate(task.next_due_date)}</span>
                             )}
                           </div>
                           {task.notes && (
@@ -437,6 +609,31 @@ export default function TasksPage() {
                             </p>
                           )}
                         </div>
+                        {/* PROJ-17: Three-dot menu for garden tasks */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Aktionen f\u00fcr ${task.name}`}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={() => handleGardenTaskClick(task)}>
+                              Bearbeiten
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeletingGardenTask(task)}
+                            >
+                              L\u00f6schen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </CardContent>
                     </Card>
                   )
@@ -446,7 +643,7 @@ export default function TasksPage() {
           )}
 
           {/* Plant care tasks section */}
-          {tasks.length > 0 && (() => {
+          {filteredCareTasks.length > 0 && (() => {
             const overdueGroups = sortedGroups.filter((g) =>
               g.tasks.some((t) => getDueStatus(t.next_due_date) === "overdue")
             )
@@ -465,6 +662,8 @@ export default function TasksPage() {
                           completingIds={completingIds}
                           onPlantClick={() => router.push(`/plants/${group.plantId}`)}
                           onCompleteClick={handleCompleteClick}
+                          onEditClick={handleEditCareTask}
+                          onDeleteClick={setDeletingCareTask}
                         />
                       ))}
                     </div>
@@ -485,6 +684,8 @@ export default function TasksPage() {
                           completingIds={completingIds}
                           onPlantClick={() => router.push(`/plants/${group.plantId}`)}
                           onCompleteClick={handleCompleteClick}
+                          onEditClick={handleEditCareTask}
+                          onDeleteClick={setDeletingCareTask}
                         />
                       ))}
                     </div>
@@ -500,9 +701,9 @@ export default function TasksPage() {
       <AlertDialog open={!!overdueTask} onOpenChange={(open) => { if (!open) setOverdueTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Überfällige Aufgabe erledigen</AlertDialogTitle>
+            <AlertDialogTitle>\u00dcberf\u00e4llige Aufgabe erledigen</AlertDialogTitle>
             <AlertDialogDescription>
-              Die Aufgabe &quot;{overdueTask?.name}&quot; ist überfällig. Wie soll das nächste Fälligkeitsdatum berechnet werden?
+              Die Aufgabe &quot;{overdueTask?.name}&quot; ist \u00fcberf\u00e4llig. Wie soll das n\u00e4chste F\u00e4lligkeitsdatum berechnet werden?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
@@ -528,9 +729,9 @@ export default function TasksPage() {
       <AlertDialog open={!!overdueGardenTask} onOpenChange={(open) => { if (!open) setOverdueGardenTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Überfällige Aufgabe erledigen</AlertDialogTitle>
+            <AlertDialogTitle>\u00dcberf\u00e4llige Aufgabe erledigen</AlertDialogTitle>
             <AlertDialogDescription>
-              Die Aufgabe &quot;{overdueGardenTask?.name}&quot; ist überfällig. Wie soll das nächste Fälligkeitsdatum berechnet werden?
+              Die Aufgabe &quot;{overdueGardenTask?.name}&quot; ist \u00fcberf\u00e4llig. Wie soll das n\u00e4chste F\u00e4lligkeitsdatum berechnet werden?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
@@ -547,6 +748,52 @@ export default function TasksPage() {
               onClick={() => overdueGardenTask && doGardenComplete(overdueGardenTask, "today")}
             >
               Ab heute rechnen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* PROJ-17: Delete confirmation dialog for care tasks */}
+      <AlertDialog open={!!deletingCareTask} onOpenChange={(open) => { if (!open) setDeletingCareTask(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pflegeaufgabe l\u00f6schen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Die Aufgabe &quot;{deletingCareTask?.name}&quot; wird dauerhaft gel\u00f6scht. Diese Aktion kann nicht r\u00fcckg\u00e4ngig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingCare}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCareTask}
+              disabled={isDeletingCare}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingCare && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              L\u00f6schen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* PROJ-17: Delete confirmation dialog for garden tasks (via menu) */}
+      <AlertDialog open={!!deletingGardenTask} onOpenChange={(open) => { if (!open) setDeletingGardenTask(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gartenaufgabe l\u00f6schen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Die Aufgabe &quot;{deletingGardenTask?.name}&quot; wird dauerhaft gel\u00f6scht. Diese Aktion kann nicht r\u00fcckg\u00e4ngig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingGarden}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteGardenTask}
+              disabled={isDeletingGarden}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingGarden && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              L\u00f6schen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -571,16 +818,31 @@ export default function TasksPage() {
         onSelectPlant={handlePickerSelectPlant}
       />
 
-      {/* Care task sheet (for creating care tasks from task page) */}
-      {/* Always mounted to avoid unmounting during close animation */}
+      {/* Care task sheet (for creating AND editing care tasks) */}
       <CareTaskSheet
         open={careSheetOpen}
         onOpenChange={(open) => {
           setCareSheetOpen(open)
-          if (!open) setCareSheetPlantId(null)
+          if (!open) {
+            setCareSheetPlantId(null)
+            setEditingCareTask(null)
+          }
         }}
         plantId={lastCareSheetPlantIdRef.current ?? ''}
-        onSuccess={handleCareTaskSuccess}
+        task={editingCareTask ? {
+          id: editingCareTask.id,
+          plant_id: editingCareTask.plant_id,
+          user_id: editingCareTask.user_id,
+          name: editingCareTask.name,
+          frequency: editingCareTask.frequency,
+          interval_days: editingCareTask.interval_days,
+          next_due_date: editingCareTask.next_due_date,
+          notes: editingCareTask.notes,
+          active_month_start: editingCareTask.active_month_start,
+          active_month_end: editingCareTask.active_month_end,
+          created_at: editingCareTask.created_at,
+        } : undefined}
+        onSuccess={handleCareEditSuccess}
       />
     </div>
   )
@@ -591,11 +853,15 @@ function PlantGroup({
   completingIds,
   onPlantClick,
   onCompleteClick,
+  onEditClick,
+  onDeleteClick,
 }: {
   group: { plantId: string; plantName: string; tasks: TodayCareTask[] }
   completingIds: Set<string>
   onPlantClick: () => void
   onCompleteClick: (task: TodayCareTask) => void
+  onEditClick: (task: TodayCareTask) => void
+  onDeleteClick: (task: TodayCareTask) => void
 }) {
   return (
     <div className="space-y-2">
@@ -655,7 +921,7 @@ function PlantGroup({
                       </Badge>
                     )}
                     {status === "upcoming" && (
-                      <span>Fällig: {formatDate(task.next_due_date)}</span>
+                      <span>F\u00e4llig: {formatDate(task.next_due_date)}</span>
                     )}
                   </div>
                   {task.notes && (
@@ -664,6 +930,30 @@ function PlantGroup({
                     </p>
                   )}
                 </div>
+                {/* PROJ-17: Three-dot menu for care tasks */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      aria-label={`Aktionen f\u00fcr ${task.name}`}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEditClick(task)}>
+                      Bearbeiten
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => onDeleteClick(task)}
+                    >
+                      L\u00f6schen
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </CardContent>
             </Card>
           )
@@ -684,7 +974,7 @@ function AllDoneState({ range, selectedMonth, onGoToPlants }: { range: FilterRan
       </div>
       <h2 className="text-lg font-medium">Alles erledigt!</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-4 max-w-xs">
-        Keine Aufgaben für &quot;{rangeLabel}&quot; fällig. Entspann dich oder schau bei deinen Pflanzen vorbei.
+        Keine Aufgaben f\u00fcr &quot;{rangeLabel}&quot; f\u00e4llig. Entspann dich oder schau bei deinen Pflanzen vorbei.
       </p>
       <Button variant="outline" onClick={onGoToPlants}>
         <Leaf className="h-4 w-4" />
