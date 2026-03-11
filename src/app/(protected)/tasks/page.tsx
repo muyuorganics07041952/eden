@@ -346,23 +346,12 @@ export default function TasksPage() {
     setCareSheetOpen(true)
   }
 
-  function handleCareEditSuccess(savedTask: CareTask) {
+  function handleCareEditSuccess(_savedTask: CareTask) {
     setCareSheetOpen(false)
     setCareSheetPlantId(null)
-    if (editingCareTask) {
-      // Update or remove the task in place
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === savedTask.id
-            ? { ...savedTask, plant_name: editingCareTask.plant_name }
-            : t
-        )
-      )
-      setEditingCareTask(null)
-    } else {
-      // New task created — refetch
-      fetchTasks(range, selectedMonth ?? undefined)
-    }
+    setEditingCareTask(null)
+    // Always refetch so tasks outside the current range are removed
+    fetchTasks(range, selectedMonth ?? undefined)
   }
 
   async function handleDeleteCareTask() {
