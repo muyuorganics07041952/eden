@@ -45,10 +45,10 @@ import { TaskTypePicker } from "@/components/tasks/task-type-picker"
 import { CareTaskSheet } from "@/components/care/care-task-sheet"
 import { TaskFilterBar, type StatusFilter } from "@/components/tasks/task-filter-bar"
 
-const MONTH_SHORT = ['Jan', 'Feb', 'M\u00e4r', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+const MONTH_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
 
 function getSeasonBadgeLabel(start: number, end: number): string {
-  return `${MONTH_SHORT[start - 1]}\u2013${MONTH_SHORT[end - 1]}`
+  return `${MONTH_SHORT[start - 1]}\–${MONTH_SHORT[end - 1]}`
 }
 
 type FilterRange = "month" | "week" | "today"
@@ -62,7 +62,7 @@ const FILTER_LABELS: Record<FilterRange, string> = {
 const MONTHS = [
   { num: 1,  letter: "J", name: "Januar" },
   { num: 2,  letter: "F", name: "Februar" },
-  { num: 3,  letter: "M", name: "M\u00e4rz" },
+  { num: 3,  letter: "M", name: "März" },
   { num: 4,  letter: "A", name: "April" },
   { num: 5,  letter: "M", name: "Mai" },
   { num: 6,  letter: "J", name: "Juni" },
@@ -435,14 +435,14 @@ export default function TasksPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
             <CheckSquare className="h-6 w-6 text-primary" />
-            F\u00e4llige Aufgaben
+            Fällige Aufgaben
           </h1>
           {!loading && !error && totalTaskCount > 0 && (
             <p className="text-sm text-muted-foreground mt-1">
-              {totalTaskCount} Aufgabe{totalTaskCount !== 1 ? "n" : ""} f\u00e4llig
+              {totalTaskCount} Aufgabe{totalTaskCount !== 1 ? "n" : ""} fällig
               {totalOverdueCount > 0 && (
                 <span className="text-orange-600">
-                  {" "}({totalOverdueCount} \u00fcberf\u00e4llig)
+                  {" "}({totalOverdueCount} überfällig)
                 </span>
               )}
             </p>
@@ -451,10 +451,10 @@ export default function TasksPage() {
         <Button
           size="sm"
           onClick={handleOpenCreateSheet}
-          aria-label="Aufgabe hinzuf\u00fcgen"
+          aria-label="Aufgabe hinzufügen"
         >
           <Plus className="h-4 w-4" />
-          Aufgabe hinzuf\u00fcgen
+          Aufgabe hinzufügen
         </Button>
       </div>
 
@@ -468,7 +468,7 @@ export default function TasksPage() {
       </Tabs>
 
       {/* Month Picker */}
-      <div className="flex gap-1.5 flex-wrap" aria-label="Monat ausw\u00e4hlen">
+      <div className="flex gap-1.5 flex-wrap" aria-label="Monat auswählen">
         {MONTHS.map((m) => (
           <button
             key={m.num}
@@ -527,7 +527,7 @@ export default function TasksPage() {
             Keine Aufgaben entsprechen den aktiven Filtern.
           </p>
           <Button variant="outline" onClick={resetFilters}>
-            Filter zur\u00fccksetzen
+            Filter zurücksetzen
           </Button>
         </div>
       ) : (
@@ -600,7 +600,7 @@ export default function TasksPage() {
                               </Badge>
                             )}
                             {status === "upcoming" && (
-                              <span>F\u00e4llig: {formatDate(task.next_due_date)}</span>
+                              <span>Fällig: {formatDate(task.next_due_date)}</span>
                             )}
                           </div>
                           {task.notes && (
@@ -617,7 +617,7 @@ export default function TasksPage() {
                               size="icon"
                               className="h-8 w-8 shrink-0"
                               onClick={(e) => e.stopPropagation()}
-                              aria-label={`Aktionen f\u00fcr ${task.name}`}
+                              aria-label={`Aktionen für ${task.name}`}
                             >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
@@ -630,7 +630,7 @@ export default function TasksPage() {
                               className="text-destructive focus:text-destructive"
                               onClick={() => setDeletingGardenTask(task)}
                             >
-                              L\u00f6schen
+                              Löschen
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -701,9 +701,9 @@ export default function TasksPage() {
       <AlertDialog open={!!overdueTask} onOpenChange={(open) => { if (!open) setOverdueTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>\u00dcberf\u00e4llige Aufgabe erledigen</AlertDialogTitle>
+            <AlertDialogTitle>Überfällige Aufgabe erledigen</AlertDialogTitle>
             <AlertDialogDescription>
-              Die Aufgabe &quot;{overdueTask?.name}&quot; ist \u00fcberf\u00e4llig. Wie soll das n\u00e4chste F\u00e4lligkeitsdatum berechnet werden?
+              Die Aufgabe &quot;{overdueTask?.name}&quot; ist überfällig. Wie soll das nächste Fälligkeitsdatum berechnet werden?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
@@ -729,9 +729,9 @@ export default function TasksPage() {
       <AlertDialog open={!!overdueGardenTask} onOpenChange={(open) => { if (!open) setOverdueGardenTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>\u00dcberf\u00e4llige Aufgabe erledigen</AlertDialogTitle>
+            <AlertDialogTitle>Überfällige Aufgabe erledigen</AlertDialogTitle>
             <AlertDialogDescription>
-              Die Aufgabe &quot;{overdueGardenTask?.name}&quot; ist \u00fcberf\u00e4llig. Wie soll das n\u00e4chste F\u00e4lligkeitsdatum berechnet werden?
+              Die Aufgabe &quot;{overdueGardenTask?.name}&quot; ist überfällig. Wie soll das nächste Fälligkeitsdatum berechnet werden?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
@@ -757,9 +757,9 @@ export default function TasksPage() {
       <AlertDialog open={!!deletingCareTask} onOpenChange={(open) => { if (!open) setDeletingCareTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Pflegeaufgabe l\u00f6schen?</AlertDialogTitle>
+            <AlertDialogTitle>Pflegeaufgabe löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Die Aufgabe &quot;{deletingCareTask?.name}&quot; wird dauerhaft gel\u00f6scht. Diese Aktion kann nicht r\u00fcckg\u00e4ngig gemacht werden.
+              Die Aufgabe &quot;{deletingCareTask?.name}&quot; wird dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -770,7 +770,7 @@ export default function TasksPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeletingCare && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              L\u00f6schen
+              Löschen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -780,9 +780,9 @@ export default function TasksPage() {
       <AlertDialog open={!!deletingGardenTask} onOpenChange={(open) => { if (!open) setDeletingGardenTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Gartenaufgabe l\u00f6schen?</AlertDialogTitle>
+            <AlertDialogTitle>Gartenaufgabe löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Die Aufgabe &quot;{deletingGardenTask?.name}&quot; wird dauerhaft gel\u00f6scht. Diese Aktion kann nicht r\u00fcckg\u00e4ngig gemacht werden.
+              Die Aufgabe &quot;{deletingGardenTask?.name}&quot; wird dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -793,7 +793,7 @@ export default function TasksPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeletingGarden && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              L\u00f6schen
+              Löschen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -921,7 +921,7 @@ function PlantGroup({
                       </Badge>
                     )}
                     {status === "upcoming" && (
-                      <span>F\u00e4llig: {formatDate(task.next_due_date)}</span>
+                      <span>Fällig: {formatDate(task.next_due_date)}</span>
                     )}
                   </div>
                   {task.notes && (
@@ -937,7 +937,7 @@ function PlantGroup({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 shrink-0"
-                      aria-label={`Aktionen f\u00fcr ${task.name}`}
+                      aria-label={`Aktionen für ${task.name}`}
                     >
                       <MoreVertical className="h-4 w-4" />
                     </Button>
@@ -950,7 +950,7 @@ function PlantGroup({
                       className="text-destructive focus:text-destructive"
                       onClick={() => onDeleteClick(task)}
                     >
-                      L\u00f6schen
+                      Löschen
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -974,7 +974,7 @@ function AllDoneState({ range, selectedMonth, onGoToPlants }: { range: FilterRan
       </div>
       <h2 className="text-lg font-medium">Alles erledigt!</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-4 max-w-xs">
-        Keine Aufgaben f\u00fcr &quot;{rangeLabel}&quot; f\u00e4llig. Entspann dich oder schau bei deinen Pflanzen vorbei.
+        Keine Aufgaben für &quot;{rangeLabel}&quot; fällig. Entspann dich oder schau bei deinen Pflanzen vorbei.
       </p>
       <Button variant="outline" onClick={onGoToPlants}>
         <Leaf className="h-4 w-4" />
