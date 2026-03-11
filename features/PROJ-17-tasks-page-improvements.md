@@ -84,7 +84,76 @@ Die aktuelle Aufgabenseite zeigt alle fälligen Aufgaben gruppiert nach Pflanze,
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Komponenten-Struktur
+
+```
+/tasks Seite (page.tsx)
++-- Header (bestehend: Titel + "Aufgabe hinzufügen"-Button)
++-- Range-Tabs (bestehend: Dieser Monat / Diese Woche / Heute)
++-- Monats-Picker (bestehend: J F M A M J J A S O N D)
++-- TaskFilterBar  ← NEU (eigene Komponente)
+|   +-- SearchInput (Suchfeld + X-Clear-Button)
+|   +-- Status-Chips ("Überfällig", "Heute", "Anstehend")
+|   +-- Pflanzen-Chips (dynamisch aus geladenen Aufgaben)
+|   +-- Aufgaben-Zähler ("5 von 12 Aufgaben", nur wenn Filter aktiv)
+|   +-- "Filter zurücksetzen"-Button (nur wenn Filter aktiv)
++-- Content-Bereich
+|   +-- Garten-Aufgaben-Sektion
+|   |   +-- Garten-Aufgabenkarte (✓-Button + ⋮-Menü)  ← GEÄNDERT
+|   |       +-- ⋮-DropdownMenu: "Bearbeiten", "Löschen"
+|   +-- Pflanzenpflege-Aufgaben-Sektion
+|       +-- PlantGroup
+|           +-- Pflanzenpflege-Aufgabenkarte (✓-Button + ⋮-Menü)  ← GEÄNDERT
+|               +-- ⋮-DropdownMenu: "Bearbeiten", "Löschen"
++-- Kein-Ergebnis-State  ← angepasst (unterscheidet: keine Daten vs. kein Filterergebnis)
++-- CareTaskSheet (bestehend, jetzt auch mit task-Prop für Edit)  ← GEÄNDERT
++-- AlertDialog (Bestätigung: Aufgabe löschen)  ← NEU
++-- GardenTaskSheet (bestehend)
++-- TaskTypePicker (bestehend)
++-- AlertDialog (bestehend: überfällige Aufgabe erledigen)
+```
+
+### Datenmodell
+
+Keine neuen Datenbankfelder — alle Verbesserungen sind rein client-seitig.
+
+**Neuer Filter-State auf der Seite:**
+- Suchtext: Freitext (leer = kein Filter)
+- Aktive Status: Menge von {"Überfällig", "Heute", "Anstehend"} (leer = alle zeigen)
+- Aktive Pflanzen: Menge von Pflanzen-IDs (leer = alle zeigen)
+
+**Gefilterte Listen (berechnet, nicht gespeichert):**
+- `gefilterte Pflanzenpflege-Aufgaben` = alle care tasks, die Suchtext + Status + Pflanzen-Filter bestehen
+- `gefilterte Garten-Aufgaben` = alle garden tasks, die Suchtext + Status-Filter bestehen (Pflanzen-Filter ignoriert)
+
+**Bestehende APIs genutzt (keine neuen benötigt):**
+- Bearbeiten: `PUT /api/plants/[id]/care/[taskId]` mit `action: "edit"` — schon vorhanden ✅
+- Löschen: `DELETE /api/plants/[id]/care/[taskId]` — schon vorhanden ✅
+
+### Geänderte Dateien
+
+**Neue Datei:**
+- `src/components/tasks/task-filter-bar.tsx` — Suchfeld + Status-Chips + Pflanzen-Chips
+
+**Geänderte Dateien:**
+- `src/app/(protected)/tasks/page.tsx` — Filter-State + useMemo für gefilterte Listen + Edit/Löschen-Handler für care tasks + AlertDialog für Lösch-Bestätigung + ⋮-Menü auf beiden Kartentypen
+- `src/components/tasks/garden-task-sheet.tsx` — wird geprüft ob Änderungen nötig (voraussichtlich keine)
+
+### Tech-Entscheidungen
+
+| Entscheidung | Begründung |
+|---|---|
+| `DropdownMenu` (shadcn/ui) | Bereits installiert; Standard-Pattern für ⋮-Aktionsmenüs |
+| Client-seitige Filterung | Daten sind bereits geladen — keine neuen API-Aufrufe nötig; Instant-Responsivität |
+| `useMemo` für gefilterte Listen | Berechneter Wert aus State, kein extra State — gleicher Ansatz wie PROJ-16 |
+| CareTaskSheet im Edit-Modus | Die Komponente hat bereits einen `task?`-Prop für Edit — kein neues Sheet nötig |
+| DELETE-Endpoint wiederverwenden | Endpoint existiert bereits und ist abgesichert (Auth + User-Check) |
+| Filterstate bei Tab-Wechsel zurücksetzen | Vermeidet verwirrende Filter-Kombinationen nach dem Zeitraum-Wechsel |
+| Pflanzen-Filter ignoriert Garten-Aufgaben | Garten-Aufgaben haben keinen Pflanzenbezug — Trennung ist semantisch korrekt |
+
+### Pakete
+Keine neuen Pakete — `DropdownMenu`, `AlertDialog`, `Input`, `Badge` bereits via shadcn/ui installiert.
 
 ## QA Test Results
 _To be added by /qa_
