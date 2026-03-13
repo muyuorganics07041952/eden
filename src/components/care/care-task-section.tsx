@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
 import { CareTaskCard } from "@/components/care/care-task-card"
 import { CareTaskSheet } from "@/components/care/care-task-sheet"
 import { FREQUENCY_LABELS } from "@/lib/types/care"
@@ -22,9 +23,10 @@ import type { CareTask, CareSuggestion, CareFrequency } from "@/lib/types/care"
 
 interface CareTaskSectionProps {
   plantId: string
+  onTaskCompleted?: () => void
 }
 
-export function CareTaskSection({ plantId }: CareTaskSectionProps) {
+export function CareTaskSection({ plantId, onTaskCompleted }: CareTaskSectionProps) {
   const [tasks, setTasks] = useState<CareTask[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -209,17 +211,23 @@ export function CareTaskSection({ plantId }: CareTaskSectionProps) {
     })
   }
 
-  async function handleComplete(taskId: string, mode: "today" | "original" = "today") {
+  async function handleComplete(taskId: string, mode: "today" | "original" = "today", notes?: string) {
     const res = await fetch(`/api/plants/${plantId}/care/${taskId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "complete", mode }),
+      body: JSON.stringify({ action: "complete", mode, notes: notes ?? null }),
     })
     if (!res.ok) throw new Error("Fehler beim Markieren als erledigt")
-    const updatedTask: CareTask = await res.json()
+    const data = await res.json()
+    if (data.completionHistoryFailed) {
+      toast.warning("Aufgabe erledigt, aber Verlaufseintrag konnte nicht gespeichert werden.")
+    }
+    const updatedTask = data as CareTask
     setTasks((prev) =>
       prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
     )
+    // Notify parent that a completion happened (for history refresh)
+    onTaskCompleted?.()
   }
 
   async function handleDelete(taskId: string) {

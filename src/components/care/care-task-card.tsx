@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Pencil, Trash2, Clock, AlertTriangle } from "lucide-react"
+import { Check, Pencil, Trash2, Clock, AlertTriangle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,13 +17,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 import { FREQUENCY_LABELS } from "@/lib/types/care"
 import type { CareTask, CareFrequency } from "@/lib/types/care"
+
+const MAX_NOTE_LENGTH = 500
 
 interface CareTaskCardProps {
   task: CareTask
   plantId: string
-  onComplete: (taskId: string, mode: "today" | "original") => Promise<void>
+  onComplete: (taskId: string, mode: "today" | "original", notes?: string) => Promise<void>
   onEdit: (task: CareTask) => void
   onDelete: (taskId: string) => Promise<void>
 }
@@ -54,6 +58,12 @@ export function CareTaskCard({
   const [completing, setCompleting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [overdueDialogOpen, setOverdueDialogOpen] = useState(false)
+  // Note dialog state
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false)
+  const [noteText, setNoteText] = useState("")
+  const [showNoteInput, setShowNoteInput] = useState(false)
+  const [pendingMode, setPendingMode] = useState<"today" | "original">("today")
+
   const status = getDueStatus(task.next_due_date)
 
   async function handleCompleteClick() {
@@ -61,16 +71,29 @@ export function CareTaskCard({
       setOverdueDialogOpen(true)
       return
     }
-    await doComplete("today")
+    // Non-overdue: show note dialog directly
+    openNoteDialog("today")
   }
 
-  async function doComplete(mode: "today" | "original") {
-    setCompleting(true)
+  function openNoteDialog(mode: "today" | "original") {
+    setPendingMode(mode)
+    setNoteText("")
+    setShowNoteInput(false)
     setOverdueDialogOpen(false)
+    setNoteDialogOpen(true)
+  }
+
+  async function doComplete(notes?: string) {
+    setCompleting(true)
+    setNoteDialogOpen(false)
     try {
-      await onComplete(task.id, mode)
+      await onComplete(task.id, pendingMode, notes)
+    } catch {
+      toast.error("Aufgabe konnte nicht erledigt werden. Bitte überprüfe deine Verbindung.")
     } finally {
       setCompleting(false)
+      setNoteText("")
+      setShowNoteInput(false)
     }
   }
 
@@ -80,6 +103,15 @@ export function CareTaskCard({
       await onDelete(task.id)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  function handleNoteDialogOpenChange(open: boolean) {
+    if (!open) {
+      // User closed dialog without choosing - do NOT complete
+      setNoteDialogOpen(false)
+      setNoteText("")
+      setShowNoteInput(false)
     }
   }
 
@@ -195,21 +227,93 @@ export function CareTaskCard({
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
             <AlertDialogCancel disabled={completing}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button
-                variant="outline"
-                onClick={() => doComplete("original")}
-                disabled={completing}
-              >
-                Im Original-Rhythmus
-              </Button>
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => doComplete("today")}
+            <Button
+              variant="outline"
+              onClick={() => openNoteDialog("original")}
+              disabled={completing}
+            >
+              Im Original-Rhythmus
+            </Button>
+            <Button
+              onClick={() => openNoteDialog("today")}
               disabled={completing}
             >
               Ab heute rechnen
-            </AlertDialogAction>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Note dialog - appears after mode selection or direct complete */}
+      <AlertDialog open={noteDialogOpen} onOpenChange={handleNoteDialogOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aufgabe erledigt</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchtest du eine Notiz zu dieser Erledigung hinzufügen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {showNoteInput ? (
+            <div className="space-y-2">
+              <Textarea
+                placeholder="z.B. Pflanze sieht trocken aus..."
+                value={noteText}
+                onChange={(e) => {
+                  if (e.target.value.length <= MAX_NOTE_LENGTH) {
+                    setNoteText(e.target.value)
+                  }
+                }}
+                className="min-h-[80px] resize-none"
+                aria-label="Notiz zur Erledigung"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {noteText.length}/{MAX_NOTE_LENGTH}
+              </p>
+            </div>
+          ) : null}
+
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            {showNoteInput ? (
+              <>
+                <AlertDialogCancel
+                  onClick={() => {
+                    setShowNoteInput(false)
+                    setNoteText("")
+                  }}
+                >
+                  Abbrechen
+                </AlertDialogCancel>
+                <Button
+                  onClick={() => doComplete(noteText.trim() || undefined)}
+                  disabled={completing}
+                >
+                  {completing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  Erledigen
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => doComplete(undefined)}
+                  disabled={completing}
+                >
+                  {completing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : null}
+                  Überspringen
+                </Button>
+                <Button
+                  onClick={() => setShowNoteInput(true)}
+                >
+                  Notiz hinzufügen
+                </Button>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

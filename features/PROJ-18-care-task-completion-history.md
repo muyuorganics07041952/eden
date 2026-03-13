@@ -1,6 +1,6 @@
 # PROJ-18: Aufgaben-Verlauf (Care Task Completion History)
 
-## Status: Planned
+## Status: In Review
 **Created:** 2026-03-13
 **Last Updated:** 2026-03-13
 
@@ -139,7 +139,148 @@ Pflanzenseite (/plants/[id]/page.tsx)
 Keine neuen — `Textarea`, `AlertDialog`, `Button`, `Badge`, `Separator` bereits via shadcn/ui installiert.
 
 ## QA Test Results
-_To be added by /qa_
+
+**Tested:** 2026-03-13
+**App URL:** http://localhost:3000
+**Tester:** QA Engineer (AI)
+**Method:** Code review + build verification (no live browser session)
+
+### Acceptance Criteria Status
+
+#### AC-1: Notiz-Dialog beim Erledigen einer Aufgabe
+
+- [x] Nach dem Erledigen (Klick auf Checkmark und ggf. Modus-Auswahl) erscheint eine kurze Abfrage: "Moechtest du eine Notiz hinzufuegen?" -- Dialog text reads "Moechtest du eine Notiz zu dieser Erledigung hinzufuegen?" (slightly different wording but intent matches)
+- [x] Zwei Optionen: "Notiz hinzufuegen" und "Ueberspringen" -- Both buttons present in the AlertDialogFooter
+- [x] Bei "Notiz hinzufuegen": Ein Textfeld (max. 500 Zeichen) wird sichtbar; der Nutzer kann tippen und mit "Erledigen" bestaetigen -- Textarea with MAX_NOTE_LENGTH=500 and "Erledigen" button confirmed
+- [x] Bei "Ueberspringen": Aufgabe wird ohne Notiz erledigt -- `doComplete(undefined)` is called
+- [x] Die Notiz ist vollstaendig optional -- kein Pflichtfeld -- Confirmed, notes field is optional throughout
+- [ ] **BUG-1:** Der Zeichenzaehler zeigt die verbleibenden Zeichen an (z.B. "480/500") -- The counter shows `{noteText.length}/{MAX_NOTE_LENGTH}` which displays "0/500", "20/500" etc. (current/max), NOT remaining characters as specified ("480/500" remaining). The spec says "verbleibenden Zeichen" (remaining characters).
+- [x] Nach Bestaetigung schliesst sich der Dialog und die Erledigung wird gespeichert -- `doComplete()` sets `setNoteDialogOpen(false)` then calls `onComplete`
+
+#### AC-2: Verlauf-Sektion auf der Pflanzenseite
+
+- [x] Unterhalb der Pflegeaufgaben-Sektion erscheint ein "Verlauf"-Bereich -- `CompletionHistorySection` rendered below `CareTaskSection` in page.tsx (line 226)
+- [x] Jeder Eintrag zeigt: Aufgabenname, Erledigungsdatum relativ + absolut als Tooltip oder Subtext -- Both relative date (with Tooltip for absolute) AND absolute date as subtext are shown
+- [x] Wenn eine Notiz vorhanden ist, wird sie als zweite Zeile unter Aufgabenname und Datum angezeigt -- Conditional render `{completion.notes && ...}` confirmed
+- [x] Eintraege sind nach Datum sortiert, neueste zuerst -- API orders by `completed_at DESC`
+- [x] Initial werden 10 Eintraege angezeigt -- PAGE_SIZE = 10
+- [x] Ein "Mehr laden"-Button laedt 10 weitere Eintraege nach, bis alle angezeigt sind -- `hasMore` logic and `handleLoadMore` with offset pagination confirmed
+- [x] Hat die Pflanze noch keine Erledigungen, erscheint ein "Noch keine Erledigungen"-Empty-State -- Empty state with "Noch keine Erledigungen" text confirmed
+
+#### AC-3: Datenpersistenz (neue Tabelle)
+
+- [x] Jede Erledigung einer Pflegeaufgabe erstellt einen neuen Eintrag in `care_task_completions` -- INSERT in PUT handler confirmed (line 168-176 of taskId/route.ts)
+- [x] Felder: Aufgaben-ID, Aufgabenname (Snapshot), Pflanzen-ID, Erledigungsdatum, optionale Notiz -- All fields present in migration and insert
+- [x] Der Aufgabenname wird als Snapshot gespeichert -- `task_name: currentTask.name` confirmed
+- [x] Erledigungen vor PROJ-18 erscheinen nicht im Verlauf -- kein Backfill -- No backfill migration exists, confirmed
+
+### Edge Cases Status
+
+#### EC-1: Aufgabe geloescht
+- [x] Handled correctly -- Migration uses `ON DELETE SET NULL` for task_id, task_name snapshot preserved
+
+#### EC-2: Pflanze geloescht
+- [x] Handled correctly -- Migration uses `ON DELETE CASCADE` for plant_id
+
+#### EC-3: Kein Verlauf
+- [x] Handled correctly -- Empty state "Noch keine Erledigungen" renders when completions.length === 0
+
+#### EC-4: Sehr viele Eintraege
+- [x] Handled correctly -- Pagination with PAGE_SIZE=10, API limits to max 50 via `Math.min(..., 50)`
+
+#### EC-5: Notiz-Eingabe sehr lang
+- [x] Handled correctly -- Client enforces 500 char limit via onChange guard, server validates with Zod `.max(500)`, DB has CHECK constraint `char_length(notes) <= 500`
+
+#### EC-6: Notiz-Dialog abbrechen (Back-Button / ausserhalb klicken)
+- [x] Handled correctly -- `handleNoteDialogOpenChange` does NOT call doComplete when dialog is dismissed
+
+#### EC-7: Offline
+- [ ] **BUG-2:** No specific offline error message "Keine Verbindung" is shown. The generic `catch` block in `handleComplete` throws `new Error("Fehler beim Markieren als erledigt")` -- there is no specific offline detection or user-facing error toast for network failures in this flow. The error is thrown but not caught by the CareTaskCard (only `finally` runs). The user sees no feedback.
+
+### Cross-Browser Testing (Code Review)
+- [x] No browser-specific APIs used (standard fetch, DOM, React)
+- [x] CSS uses Tailwind utility classes only -- cross-browser compatible
+- [x] No CSS features requiring vendor prefixes beyond what Tailwind handles
+
+### Responsive Testing (Code Review)
+- [x] AlertDialog footer uses `flex-col gap-2 sm:flex-row` for mobile stacking
+- [x] CompletionHistoryEntry uses `truncate` on task_name and `whitespace-nowrap` on date
+- [x] No fixed widths that would break on 375px
+
+### Security Audit Results
+
+- [x] Authentication: All API endpoints verify `supabase.auth.getUser()` before processing
+- [x] Authorization: Plant ownership verified via `.eq('user_id', user.id)` in both completions GET and care task PUT
+- [x] RLS enabled: `care_task_completions` has RLS with SELECT, INSERT, DELETE policies for own user
+- [x] Input validation: Zod schema validates `notes` field with `.max(500)` and `action` with `.literal('complete')`
+- [x] SQL injection: Supabase client uses parameterized queries
+- [x] XSS: React auto-escapes all rendered text (no `dangerouslySetInnerHTML` used)
+- [x] Pagination limits: API caps `limit` at 50 and `offset` at 0 minimum
+- [ ] **BUG-3 (Security):** No RLS UPDATE policy on `care_task_completions` -- While no application code currently performs UPDATE operations on this table, the absence of an UPDATE policy means the default-deny behavior of RLS will block updates. This is safe by default BUT if an UPDATE policy is accidentally added later, or if someone uses the Supabase dashboard to edit rows, there is no guardrail. Best practice per project rules: explicitly define policies for all CRUD operations.
+- [ ] **BUG-4 (Security):** No UUID validation on `plantId` path parameter in `GET /api/plants/[id]/completions` -- The `plantId` is used directly from the URL params without validating it is a valid UUID format. While Supabase will reject invalid UUIDs at the query level, the error would be a generic 500 rather than a clean 400. The PUT endpoint for care tasks also lacks this validation but this is a pre-existing issue.
+- [ ] **BUG-5 (Security):** Completion insert failure is silently swallowed -- In the PUT handler (line 178-182), if the INSERT into `care_task_completions` fails, the error is logged but the response returns success (200). The user has no indication that their completion was not recorded in the history. This could lead to data loss of history records without the user knowing.
+- [x] No secrets exposed in client-side code
+- [x] No sensitive data leakage in API responses
+
+### Bugs Found
+
+#### BUG-1: Zeichenzaehler zeigt aktuelle statt verbleibende Zeichen
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. Go to a plant detail page
+  2. Click the checkmark on a care task
+  3. Click "Notiz hinzufuegen"
+  4. Type some text
+  5. Expected: Counter shows remaining characters, e.g. "480/500"
+  6. Actual: Counter shows current length, e.g. "20/500"
+- **Code Location:** `src/components/care/care-task-card.tsx` line 268-270
+- **Priority:** Fix in next sprint (cosmetic, does not affect functionality)
+
+#### BUG-2: Fehlende Offline-Fehlermeldung bei Erledigung — FIXED
+- **Severity:** Medium
+- **Fix:** `doComplete()` now has a `catch` block that calls `toast.error("Aufgabe konnte nicht erledigt werden. Bitte überprüfe deine Verbindung.")` when the API call fails.
+
+#### BUG-3: Fehlende RLS UPDATE Policy auf care_task_completions
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. Review `supabase/migrations/20260313_care_task_completions.sql`
+  2. Note: SELECT, INSERT, DELETE policies exist but no UPDATE policy
+  3. Expected: Either an UPDATE policy or an explicit comment explaining it is intentionally omitted
+  4. Actual: UPDATE policy is missing without documentation
+- **Code Location:** `supabase/migrations/20260313_care_task_completions.sql`
+- **Priority:** Nice to have (RLS default-deny is safe, but explicit is better)
+
+#### BUG-4: Fehlende UUID-Validierung auf plantId Pfadparameter
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. Send GET request to `/api/plants/not-a-uuid/completions`
+  2. Expected: 400 Bad Request with clear error message
+  3. Actual: Supabase query fails, returns 404 (plant not found) or 500 depending on Supabase error type
+- **Code Location:** `src/app/api/plants/[id]/completions/route.ts` line 8
+- **Priority:** Nice to have (defense in depth, does not cause security issue)
+
+#### BUG-5: Completion-Insert-Fehler wird stillschweigend geschluckt — FIXED
+- **Severity:** Medium
+- **Fix:** API now returns `{ ...updatedTask, completionHistoryFailed: true }` when the history INSERT fails. `CareTaskSection.handleComplete` checks this flag and calls `toast.warning("Aufgabe erledigt, aber Verlaufseintrag konnte nicht gespeichert werden.")`. The task state is still updated correctly.
+
+### Build Verification
+- [x] `npm run build` completes successfully with no errors
+- [x] New route `/api/plants/[id]/completions` appears in build output
+- [x] No TypeScript compilation errors
+
+### Regression Check
+- [x] `CareTaskSection` still passes `onComplete` with the new 3-parameter signature (taskId, mode, notes)
+- [x] Existing care task edit flow unchanged (edit schema and handler untouched)
+- [x] Existing delete flow unchanged
+- [x] Plant detail page structure preserved, new section appended at end
+- [ ] **NOTE:** The tasks page (`/tasks`) uses a different completion flow that bypasses `CareTaskCard`. Need to verify manually that completing tasks from the tasks page still works (no note dialog expected there, but completion records should still be written if the tasks page calls the same API).
+
+### Summary
+- **Acceptance Criteria:** 13/14 passed (1 low-severity cosmetic issue)
+- **Bugs Found:** 5 total (0 critical, 0 high, 2 medium, 3 low)
+- **Security:** Minor findings only (no critical vulnerabilities)
+- **Production Ready:** NO -- 2 medium bugs should be fixed first
+- **Recommendation:** Fix BUG-2 (silent offline failure) and BUG-5 (silent completion insert failure) before deployment. BUG-1, BUG-3, BUG-4 can be addressed in a follow-up.
 
 ## Deployment
 _To be added by /deploy_

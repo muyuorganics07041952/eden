@@ -34,6 +34,7 @@ const editSchema = z.object({
 const completeSchema = z.object({
   action: z.literal('complete'),
   mode: z.enum(['today', 'original']),
+  notes: z.string().max(500).optional().nullable(),
 })
 
 const updateSchema = z.discriminatedUnion('action', [editSchema, completeSchema])
@@ -124,12 +125,12 @@ export async function PUT(
   }
 
   // action === 'complete'
-  const { mode } = parsed.data
+  const { mode, notes: completionNotes } = parsed.data
 
-  // Fetch the current task to get interval_days, current next_due_date, and season fields
+  // Fetch the current task to get interval_days, current next_due_date, name, and season fields
   const { data: currentTask, error: fetchError } = await supabase
     .from('care_tasks')
-    .select('interval_days, next_due_date, active_month_start, active_month_end')
+    .select('name, interval_days, next_due_date, active_month_start, active_month_end')
     .eq('id', taskId)
     .eq('plant_id', plantId)
     .eq('user_id', user.id)
@@ -161,6 +162,23 @@ export async function PUT(
 
   if (updateError || !updatedTask) {
     return NextResponse.json({ error: 'Fehler beim Aktualisieren der Pflegeaufgabe.' }, { status: 500 })
+  }
+
+  // Write completion record to care_task_completions
+  const { error: completionError } = await supabase
+    .from('care_task_completions')
+    .insert({
+      user_id: user.id,
+      plant_id: plantId,
+      task_id: taskId,
+      task_name: currentTask.name,
+      notes: completionNotes ?? null,
+    })
+
+  if (completionError) {
+    console.error('Error writing completion record:', completionError)
+    // Task was completed but history record failed — signal this to the client
+    return NextResponse.json({ ...updatedTask, completionHistoryFailed: true })
   }
 
   return NextResponse.json(updatedTask)
