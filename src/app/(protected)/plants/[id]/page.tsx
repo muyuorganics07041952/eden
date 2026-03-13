@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Pencil, Trash2, Leaf, MapPin, Calendar, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,8 @@ import { PhotoGallery } from "@/components/plants/photo-gallery"
 import { EditPlantSheet } from "@/components/plants/edit-plant-sheet"
 import { DeletePlantDialog } from "@/components/plants/delete-plant-dialog"
 import { CareTaskSection } from "@/components/care/care-task-section"
+import { CompletionHistorySection } from "@/components/care/completion-history-section"
+import type { CompletionHistoryRef } from "@/components/care/completion-history-section"
 import type { Plant, PlantPhoto } from "@/lib/types/plants"
 
 export default function PlantDetailPage() {
@@ -22,6 +24,7 @@ export default function PlantDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const completionHistoryRef = useRef<CompletionHistoryRef>(null)
 
   const fetchPlant = useCallback(async () => {
     setLoading(true)
@@ -214,7 +217,13 @@ export default function PlantDetailPage() {
       </div>
 
       {/* Care Tasks */}
-      <CareTaskSection plantId={plant.id} />
+      <CareTaskSection
+        plantId={plant.id}
+        onTaskCompleted={() => completionHistoryRef.current?.refresh()}
+      />
+
+      {/* Completion History */}
+      <CompletionHistorySection ref={completionHistoryRef} plantId={plant.id} />
 
       {/* Edit Sheet */}
       <EditPlantSheet

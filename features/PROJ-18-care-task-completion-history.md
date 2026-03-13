@@ -1,6 +1,6 @@
 # PROJ-18: Aufgaben-Verlauf (Care Task Completion History)
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-13
 **Last Updated:** 2026-03-13
 
@@ -276,11 +276,14 @@ Keine neuen — `Textarea`, `AlertDialog`, `Button`, `Badge`, `Separator` bereit
 - [ ] **NOTE:** The tasks page (`/tasks`) uses a different completion flow that bypasses `CareTaskCard`. Need to verify manually that completing tasks from the tasks page still works (no note dialog expected there, but completion records should still be written if the tasks page calls the same API).
 
 ### Summary
-- **Acceptance Criteria:** 13/14 passed (1 low-severity cosmetic issue)
-- **Bugs Found:** 5 total (0 critical, 0 high, 2 medium, 3 low)
+- **Acceptance Criteria:** 13/14 passed (1 low-severity cosmetic issue — BUG-1)
+- **Bugs Found:** 5 total (0 critical, 0 high, 2 medium fixed, 3 low)
 - **Security:** Minor findings only (no critical vulnerabilities)
-- **Production Ready:** NO -- 2 medium bugs should be fixed first
-- **Recommendation:** Fix BUG-2 (silent offline failure) and BUG-5 (silent completion insert failure) before deployment. BUG-1, BUG-3, BUG-4 can be addressed in a follow-up.
+- **Production Ready:** YES — BUG-2 and BUG-5 fixed before deployment
 
 ## Deployment
-_To be added by /deploy_
+
+- **Deployed:** 2026-03-13
+- **Method:** Push to main → Vercel auto-deploy
+- **DB Migration:** `supabase/migrations/20260313_care_task_completions.sql` — must be applied in Supabase SQL Editor before testing
+- **Tag:** `v1.18.0-PROJ-18`

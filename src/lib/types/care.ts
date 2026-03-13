@@ -52,6 +52,17 @@ export const FREQUENCY_LABELS: Record<CareFrequency, string> = {
   custom: 'Benutzerdefiniert',
 }
 
+/** A single completion record for a care task */
+export type CareTaskCompletion = {
+  id: string
+  user_id: string
+  plant_id: string
+  task_id: string | null
+  task_name: string
+  completed_at: string // ISO timestamp
+  notes: string | null
+}
+
 /** A suggestion from the AI that has not yet been saved to the database */
 export type CareSuggestion = {
   name: string
