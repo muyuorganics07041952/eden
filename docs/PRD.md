@@ -30,6 +30,7 @@ Eine progressive Web-App (PWA) für Gartenbegeisterte, die ihre Pflanzen digital
 | P2 | Swipe-Navigation Standardansicht Fotogalerie | Planned |
 | P2 | Pflanzen-Liste Suche & Filter | Planned |
 | P2 | Aufgaben-Seite Verbesserungen | Planned |
+| P2 | Aufgaben-Verlauf | Planned |
 
 ## Success Metrics
 - **Onboarding:** 60% der neuen Nutzer legen mindestens 3 Pflanzen an
