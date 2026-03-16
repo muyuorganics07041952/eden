@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { CommunityTip } from '@/lib/types/community'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const RATE_LIMIT_TIPS_PER_DAY = 10
 
 const getTipsQuerySchema = z.object({
   plant_name: z.string().min(1, 'plant_name ist erforderlich'),
@@ -18,32 +18,6 @@ const createTipSchema = z.object({
   text: z.string().min(1, 'Tipp-Text ist erforderlich').max(500, 'Maximal 500 Zeichen'),
 })
 
-/**
- * Resolve display names for a set of user IDs via the admin API.
- * Returns a map of userId -> displayName.
- */
-async function resolveAuthorNames(userIds: string[]): Promise<Map<string, string>> {
-  const nameMap = new Map<string, string>()
-  if (userIds.length === 0) return nameMap
-
-  const adminClient = createAdminClient()
-  const uniqueIds = [...new Set(userIds)]
-
-  // Fetch users in batches (admin API supports listing)
-  for (const uid of uniqueIds) {
-    try {
-      const { data } = await adminClient.auth.admin.getUserById(uid)
-      const meta = data?.user?.user_metadata
-      const name = meta?.display_name || meta?.full_name || meta?.name
-      nameMap.set(uid, name || 'Unbekannter Nutzer')
-    } catch {
-      nameMap.set(uid, 'Unbekannter Nutzer')
-    }
-  }
-
-  return nameMap
-}
-
 export async function GET(request: Request) {
   const supabase = await createClient()
 
@@ -52,7 +26,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
   }
 
-  // Parse query params
   const { searchParams } = new URL(request.url)
   const parsed = getTipsQuerySchema.safeParse({
     plant_name: searchParams.get('plant_name') ?? undefined,
@@ -68,29 +41,11 @@ export async function GET(request: Request) {
 
   const { plant_name, species } = parsed.data
 
-  // Build the matching query using OR conditions:
-  // tip.plant_name matches plant_name (bidirectional ILIKE)
-  // OR tip.plant_species matches species (bidirectional ILIKE, if provided)
-  let query = supabase
-    .from('community_tips')
-    .select('*')
-
-  // Build OR filter for flexible matching
-  const orConditions: string[] = [
-    `plant_name.ilike.%${plant_name}%`,
-  ]
-
-  if (species) {
-    orConditions.push(`plant_species.ilike.%${species}%`)
-  }
-
-  query = query.or(orConditions.join(','))
-  query = query
-    .order('likes_count', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(20)
-
-  const { data: tips, error: tipsError } = await query
+  // BUG-2 + BUG-4 fix: Use parameterized RPC for safe bidirectional matching
+  const { data: tips, error: tipsError } = await supabase.rpc(
+    'get_community_tips_for_plant',
+    { p_plant_name: plant_name, p_species: species ?? null }
+  )
 
   if (tipsError) {
     console.error('Error fetching community tips:', tipsError)
@@ -101,9 +56,9 @@ export async function GET(request: Request) {
     return NextResponse.json([])
   }
 
-  const tipIds = tips.map((t) => t.id)
+  const tipIds = (tips as { id: string }[]).map((t) => t.id)
 
-  // Fetch likes for current user in one query
+  // Batch fetch likes for current user
   const { data: userLikes } = await supabase
     .from('community_tip_likes')
     .select('tip_id')
@@ -112,52 +67,46 @@ export async function GET(request: Request) {
 
   const likedTipIds = new Set((userLikes ?? []).map((l) => l.tip_id))
 
-  // Fetch comment counts in one query using Supabase RPC or manual count
-  // We use a separate query per-tip but batch it
-  const { data: commentCounts } = await supabase
+  // Batch fetch comment counts
+  const { data: commentRows } = await supabase
     .from('community_tip_comments')
     .select('tip_id')
     .in('tip_id', tipIds)
 
-  // Count comments per tip
   const commentCountMap = new Map<string, number>()
-  for (const row of commentCounts ?? []) {
+  for (const row of commentRows ?? []) {
     commentCountMap.set(row.tip_id, (commentCountMap.get(row.tip_id) ?? 0) + 1)
   }
 
-  // Resolve author names for all tips with user_ids
-  const authorUserIds = tips
-    .map((t) => t.user_id)
-    .filter((uid): uid is string => uid !== null)
-  const authorNames = await resolveAuthorNames(authorUserIds)
+  // BUG-3 fix: Generate signed URLs (bucket is now private)
+  // BUG-10 fix: Use snapshotted author_name from table — no admin client needed
+  const result: CommunityTip[] = await Promise.all(
+    (tips as Record<string, unknown>[]).map(async (tip) => {
+      let photo_url: string | undefined
+      if (tip.photo_path) {
+        const { data: urlData } = await supabase.storage
+          .from('community-tips')
+          .createSignedUrl(tip.photo_path as string, 3600)
+        photo_url = urlData?.signedUrl ?? undefined
+      }
 
-  // Build photo URLs
-  const result: CommunityTip[] = tips.map((tip) => {
-    let photo_url: string | undefined
-    if (tip.photo_path) {
-      const { data: urlData } = supabase.storage
-        .from('community-tips')
-        .getPublicUrl(tip.photo_path)
-      photo_url = urlData?.publicUrl
-    }
-
-    return {
-      id: tip.id,
-      user_id: tip.user_id,
-      plant_name: tip.plant_name,
-      plant_species: tip.plant_species,
-      text: tip.text,
-      photo_path: tip.photo_path,
-      photo_url,
-      likes_count: tip.likes_count,
-      created_at: tip.created_at,
-      author_name: tip.user_id
-        ? (authorNames.get(tip.user_id) ?? 'Unbekannter Nutzer')
-        : 'Gelöschter Nutzer',
-      has_liked: likedTipIds.has(tip.id),
-      comments_count: commentCountMap.get(tip.id) ?? 0,
-    }
-  })
+      const tipId = tip.id as string
+      return {
+        id: tipId,
+        user_id: tip.user_id as string | null,
+        plant_name: tip.plant_name as string,
+        plant_species: tip.plant_species as string | null,
+        text: tip.text as string,
+        photo_path: tip.photo_path as string | null,
+        photo_url,
+        likes_count: tip.likes_count as number,
+        created_at: tip.created_at as string,
+        author_name: (tip.author_name as string | null) ?? (tip.user_id ? 'Unbekannter Nutzer' : 'Gelöschter Nutzer'),
+        has_liked: likedTipIds.has(tipId),
+        comments_count: commentCountMap.get(tipId) ?? 0,
+      }
+    })
+  )
 
   return NextResponse.json(result)
 }
@@ -170,7 +119,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
   }
 
-  // Parse multipart form data
+  // BUG-9 fix: Rate limit — max 10 tips per 24 hours
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { count: recentCount } = await supabase
+    .from('community_tips')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', since)
+
+  if (recentCount !== null && recentCount >= RATE_LIMIT_TIPS_PER_DAY) {
+    return NextResponse.json(
+      { error: `Du kannst maximal ${RATE_LIMIT_TIPS_PER_DAY} Tipps pro Tag erstellen.` },
+      { status: 429 }
+    )
+  }
+
   let formData: FormData
   try {
     formData = await request.formData()
@@ -193,6 +156,10 @@ export async function POST(request: Request) {
   }
 
   const { plant_name, plant_species, text } = parsed.data
+
+  // BUG-10 fix: Snapshot author name at insert time
+  const meta = user.user_metadata
+  const author_name = meta?.display_name || meta?.full_name || meta?.name || 'Unbekannter Nutzer'
 
   // Handle optional photo upload
   let photo_path: string | null = null
@@ -230,7 +197,6 @@ export async function POST(request: Request) {
     photo_path = storagePath
   }
 
-  // Insert tip
   const { data: tip, error: insertError } = await supabase
     .from('community_tips')
     .insert({
@@ -239,31 +205,27 @@ export async function POST(request: Request) {
       plant_species: plant_species ?? null,
       text,
       photo_path,
+      author_name,
     })
     .select()
     .single()
 
   if (insertError) {
     console.error('Error creating community tip:', insertError)
-    // Cleanup orphaned photo
     if (photo_path) {
       await supabase.storage.from('community-tips').remove([photo_path])
     }
     return NextResponse.json({ error: 'Fehler beim Erstellen des Tipps.' }, { status: 500 })
   }
 
-  // Build photo URL for response
+  // BUG-3 fix: Use signed URL for response
   let photo_url: string | undefined
   if (tip.photo_path) {
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = await supabase.storage
       .from('community-tips')
-      .getPublicUrl(tip.photo_path)
-    photo_url = urlData?.publicUrl
+      .createSignedUrl(tip.photo_path, 3600)
+    photo_url = urlData?.signedUrl ?? undefined
   }
-
-  // Get author name from user metadata
-  const meta = user.user_metadata
-  const author_name = meta?.display_name || meta?.full_name || meta?.name || 'Unbekannter Nutzer'
 
   const result: CommunityTip = {
     id: tip.id,

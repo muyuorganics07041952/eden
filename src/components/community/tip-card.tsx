@@ -9,6 +9,7 @@ import {
   Loader2,
   Send,
   AlertCircle,
+  Flag,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -71,6 +72,7 @@ export function TipCard({ tip, currentUserId, onDeleted, onLikeToggled }: TipCar
   const [showComments, setShowComments] = useState(false)
   const [liking, setLiking] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [reporting, setReporting] = useState(false)
 
   // Comments state
   const [comments, setComments] = useState<CommunityTipComment[]>([])
@@ -178,6 +180,26 @@ export function TipCard({ tip, currentUserId, onDeleted, onLikeToggled }: TipCar
     }
   }
 
+  async function handleReport() {
+    if (reporting) return
+    setReporting(true)
+    try {
+      const res = await fetch(`/api/community/tips/${tip.id}/report`, {
+        method: "POST",
+      })
+      if (res.status === 409) {
+        toast.info("Du hast diesen Tipp bereits gemeldet.")
+        return
+      }
+      if (!res.ok) throw new Error("Fehler")
+      toast.success("Tipp wurde gemeldet.")
+    } catch {
+      toast.error("Fehler beim Melden.")
+    } finally {
+      setReporting(false)
+    }
+  }
+
   async function handleDeleteComment(commentId: string) {
     try {
       const res = await fetch(`/api/community/tips/${tip.id}/comments/${commentId}`, {
@@ -212,19 +234,19 @@ export function TipCard({ tip, currentUserId, onDeleted, onLikeToggled }: TipCar
             </div>
           </div>
 
-          {isOwner && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  aria-label="Aktionen"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="Aktionen"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isOwner ? (
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={handleDelete}
@@ -233,9 +255,17 @@ export function TipCard({ tip, currentUserId, onDeleted, onLikeToggled }: TipCar
                   <Trash2 className="h-4 w-4" />
                   {deleting ? "Wird geloescht..." : "Loeschen"}
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+              ) : (
+                <DropdownMenuItem
+                  onClick={handleReport}
+                  disabled={reporting}
+                >
+                  <Flag className="h-4 w-4" />
+                  {reporting ? "Wird gemeldet..." : "Melden"}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Photo */}
@@ -337,6 +367,7 @@ export function TipCard({ tip, currentUserId, onDeleted, onLikeToggled }: TipCar
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 rows={1}
+                maxLength={300}
                 className="min-h-[36px] text-sm resize-none"
                 aria-label="Kommentar schreiben"
               />

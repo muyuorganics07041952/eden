@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { CommunityTipComment } from '@/lib/types/community'
+
+const RATE_LIMIT_COMMENTS_PER_DAY = 30
 
 const createCommentSchema = z.object({
   text: z.string().min(1, 'Kommentar darf nicht leer sein').max(300, 'Maximal 300 Zeichen'),
@@ -48,36 +49,14 @@ export async function GET(
     return NextResponse.json([])
   }
 
-  // Resolve author names
-  const userIds = comments
-    .map((c) => c.user_id)
-    .filter((uid): uid is string => uid !== null)
-  const uniqueUserIds = [...new Set(userIds)]
-
-  const nameMap = new Map<string, string>()
-  if (uniqueUserIds.length > 0) {
-    const adminClient = createAdminClient()
-    for (const uid of uniqueUserIds) {
-      try {
-        const { data } = await adminClient.auth.admin.getUserById(uid)
-        const meta = data?.user?.user_metadata
-        const name = meta?.display_name || meta?.full_name || meta?.name
-        nameMap.set(uid, name || 'Unbekannter Nutzer')
-      } catch {
-        nameMap.set(uid, 'Unbekannter Nutzer')
-      }
-    }
-  }
-
+  // BUG-10 fix: Use snapshotted author_name from table — no admin client needed
   const result: CommunityTipComment[] = comments.map((c) => ({
     id: c.id,
     tip_id: c.tip_id,
     user_id: c.user_id,
     text: c.text,
     created_at: c.created_at,
-    author_name: c.user_id
-      ? (nameMap.get(c.user_id) ?? 'Unbekannter Nutzer')
-      : 'Gelöschter Nutzer',
+    author_name: c.author_name ?? (c.user_id ? 'Unbekannter Nutzer' : 'Gelöschter Nutzer'),
   }))
 
   return NextResponse.json(result)
@@ -93,6 +72,21 @@ export async function POST(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
+  }
+
+  // BUG-9 fix: Rate limit — max 30 comments per 24 hours
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { count: recentCount } = await supabase
+    .from('community_tip_comments')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', since)
+
+  if (recentCount !== null && recentCount >= RATE_LIMIT_COMMENTS_PER_DAY) {
+    return NextResponse.json(
+      { error: `Du kannst maximal ${RATE_LIMIT_COMMENTS_PER_DAY} Kommentare pro Tag schreiben.` },
+      { status: 429 }
+    )
   }
 
   // Verify tip exists
@@ -123,12 +117,17 @@ export async function POST(
 
   const { text } = parsed.data
 
+  // BUG-10 fix: Snapshot author name at insert time
+  const meta = user.user_metadata
+  const author_name = meta?.display_name || meta?.full_name || meta?.name || 'Unbekannter Nutzer'
+
   const { data: comment, error: insertError } = await supabase
     .from('community_tip_comments')
     .insert({
       tip_id: tipId,
       user_id: user.id,
       text,
+      author_name,
     })
     .select()
     .single()
@@ -137,10 +136,6 @@ export async function POST(
     console.error('Error creating comment:', insertError)
     return NextResponse.json({ error: 'Fehler beim Erstellen des Kommentars.' }, { status: 500 })
   }
-
-  // Get author name from current user metadata
-  const meta = user.user_metadata
-  const author_name = meta?.display_name || meta?.full_name || meta?.name || 'Unbekannter Nutzer'
 
   const result: CommunityTipComment = {
     id: comment.id,

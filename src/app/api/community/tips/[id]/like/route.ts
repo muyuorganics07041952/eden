@@ -16,12 +16,17 @@ export async function POST(
   // Check if the tip exists
   const { data: tip, error: tipError } = await supabase
     .from('community_tips')
-    .select('id, likes_count')
+    .select('id, user_id, likes_count')
     .eq('id', tipId)
     .single()
 
   if (tipError || !tip) {
     return NextResponse.json({ error: 'Tipp nicht gefunden.' }, { status: 404 })
+  }
+
+  // BUG-1 fix: Prevent self-likes
+  if (tip.user_id === user.id) {
+    return NextResponse.json({ error: 'Du kannst deinen eigenen Tipp nicht liken.' }, { status: 400 })
   }
 
   // Check if the user already liked this tip
