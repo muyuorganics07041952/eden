@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   CheckSquare,
   Check,
@@ -15,12 +16,12 @@ import {
   Shovel,
   MoreVertical,
   Search,
+  LayoutList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,29 +52,6 @@ function getSeasonBadgeLabel(start: number, end: number): string {
   return `${MONTH_SHORT[start - 1]}\–${MONTH_SHORT[end - 1]}`
 }
 
-type FilterRange = "month" | "week" | "today"
-
-const FILTER_LABELS: Record<FilterRange, string> = {
-  month: "Dieser Monat",
-  week: "Diese Woche",
-  today: "Heute",
-}
-
-const MONTHS = [
-  { num: 1,  letter: "J", name: "Januar" },
-  { num: 2,  letter: "F", name: "Februar" },
-  { num: 3,  letter: "M", name: "März" },
-  { num: 4,  letter: "A", name: "April" },
-  { num: 5,  letter: "M", name: "Mai" },
-  { num: 6,  letter: "J", name: "Juni" },
-  { num: 7,  letter: "J", name: "Juli" },
-  { num: 8,  letter: "A", name: "August" },
-  { num: 9,  letter: "S", name: "September" },
-  { num: 10, letter: "O", name: "Oktober" },
-  { num: 11, letter: "N", name: "November" },
-  { num: 12, letter: "D", name: "Dezember" },
-]
-
 function getDueStatus(nextDueDate: string): "overdue" | "today" | "upcoming" {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
@@ -99,8 +77,6 @@ export default function TasksPage() {
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
   const [overdueTask, setOverdueTask] = useState<TodayCareTask | null>(null)
   const [overdueGardenTask, setOverdueGardenTask] = useState<GardenTask | null>(null)
-  const [range, setRange] = useState<FilterRange>("month")
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
   const [gardenSheetOpen, setGardenSheetOpen] = useState(false)
   const [editingGardenTask, setEditingGardenTask] = useState<GardenTask | null>(null)
   const [typePickerOpen, setTypePickerOpen] = useState(false)
@@ -108,33 +84,26 @@ export default function TasksPage() {
   const [careSheetPlantId, setCareSheetPlantId] = useState<string | null>(null)
   const lastCareSheetPlantIdRef = useRef<string | null>(null)
 
-  // --- PROJ-17: New filter state ---
+  // Filter state
   const [searchQuery, setSearchQuery] = useState("")
   const [activeStatuses, setActiveStatuses] = useState<Set<StatusFilter>>(new Set())
 
-  // --- PROJ-17: Edit/delete state for care tasks ---
+  // Edit/delete state for care tasks
   const [editingCareTask, setEditingCareTask] = useState<TodayCareTask | null>(null)
   const [deletingCareTask, setDeletingCareTask] = useState<TodayCareTask | null>(null)
   const [isDeletingCare, setIsDeletingCare] = useState(false)
 
-  // --- PROJ-17: Delete state for garden tasks (via menu) ---
+  // Delete state for garden tasks (via menu)
   const [deletingGardenTask, setDeletingGardenTask] = useState<GardenTask | null>(null)
   const [isDeletingGarden, setIsDeletingGarden] = useState(false)
 
-  const fetchTasks = useCallback(async (filterRange: FilterRange, monthNum?: number) => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const careUrl = monthNum != null
-        ? `/api/tasks/today?month=${monthNum}`
-        : `/api/tasks/today?range=${filterRange}`
-      const gardenUrl = monthNum != null
-        ? `/api/garden-tasks?month=${monthNum}`
-        : `/api/garden-tasks?range=${filterRange}`
-
       const [careRes, gardenRes] = await Promise.all([
-        fetch(careUrl),
-        fetch(gardenUrl),
+        fetch("/api/tasks/today?range=month"),
+        fetch("/api/garden-tasks?range=month"),
       ])
 
       if (!careRes.ok) throw new Error("Fehler beim Laden")
@@ -155,27 +124,15 @@ export default function TasksPage() {
   }, [])
 
   useEffect(() => {
-    fetchTasks(range, selectedMonth ?? undefined)
-  }, [fetchTasks, range, selectedMonth])
+    fetchTasks()
+  }, [fetchTasks])
 
-  // --- PROJ-17: Reset filters on range/month change ---
   function resetFilters() {
     setSearchQuery("")
     setActiveStatuses(new Set())
   }
 
-  function handleRangeChange(value: string) {
-    setSelectedMonth(null)
-    setRange(value as FilterRange)
-    resetFilters()
-  }
-
-  function handleMonthClick(monthNum: number) {
-    setSelectedMonth((prev) => prev === monthNum ? null : monthNum)
-    resetFilters()
-  }
-
-  // --- PROJ-17: Filter toggle handlers ---
+  // Filter toggle handlers
   function handleToggleStatus(status: StatusFilter) {
     setActiveStatuses((prev) => {
       const next = new Set(prev)
@@ -188,7 +145,7 @@ export default function TasksPage() {
     })
   }
 
-  // --- PROJ-17: Computed filter data ---
+  // Computed filter data
   const availableStatuses = useMemo(() => {
     const statuses = new Set<StatusFilter>()
     for (const t of tasks) {
@@ -204,7 +161,7 @@ export default function TasksPage() {
 
   const isFilterActive = searchQuery.length > 0 || activeStatuses.size > 0
 
-  // --- PROJ-17: Filtered tasks ---
+  // Filtered tasks
   const filteredCareTasks = useMemo(() => {
     let result = tasks
     if (searchQuery) {
@@ -311,7 +268,7 @@ export default function TasksPage() {
 
   function handleGardenSheetSuccess(task: GardenTask | null, action: "created" | "updated" | "deleted") {
     if (action === "created" && task) {
-      fetchTasks(range, selectedMonth ?? undefined)
+      fetchTasks()
     } else if (action === "updated" && task) {
       setGardenTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
     } else if (action === "deleted") {
@@ -320,7 +277,7 @@ export default function TasksPage() {
     setEditingGardenTask(null)
   }
 
-  // --- PROJ-17: Garden task delete via menu ---
+  // Garden task delete via menu
   async function handleDeleteGardenTask() {
     if (!deletingGardenTask) return
     setIsDeletingGarden(true)
@@ -338,7 +295,7 @@ export default function TasksPage() {
     }
   }
 
-  // --- PROJ-17: Care task edit/delete via menu ---
+  // Care task edit/delete via menu
   function handleEditCareTask(task: TodayCareTask) {
     setEditingCareTask(task)
     lastCareSheetPlantIdRef.current = task.plant_id
@@ -350,8 +307,7 @@ export default function TasksPage() {
     setCareSheetOpen(false)
     setCareSheetPlantId(null)
     setEditingCareTask(null)
-    // Always refetch so tasks outside the current range are removed
-    fetchTasks(range, selectedMonth ?? undefined)
+    fetchTasks()
   }
 
   async function handleDeleteCareTask() {
@@ -437,45 +393,26 @@ export default function TasksPage() {
             </p>
           )}
         </div>
-        <Button
-          size="sm"
-          onClick={handleOpenCreateSheet}
-          aria-label="Aufgabe hinzufügen"
-        >
-          <Plus className="h-4 w-4" />
-          Aufgabe hinzufügen
-        </Button>
-      </div>
-
-      {/* Filter Tabs */}
-      <Tabs value={range} onValueChange={handleRangeChange}>
-        <TabsList aria-label="Zeitraum filtern">
-          <TabsTrigger value="month">{FILTER_LABELS.month}</TabsTrigger>
-          <TabsTrigger value="week">{FILTER_LABELS.week}</TabsTrigger>
-          <TabsTrigger value="today">{FILTER_LABELS.today}</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* Month Picker */}
-      <div className="flex gap-1.5 flex-wrap" aria-label="Monat auswählen">
-        {MONTHS.map((m) => (
-          <button
-            key={m.num}
-            onClick={() => handleMonthClick(m.num)}
-            title={m.name}
-            className={cn(
-              "h-8 w-8 rounded-md text-xs font-medium transition-colors",
-              selectedMonth === m.num
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-            )}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/tasks/overview">
+              <LayoutList className="h-4 w-4" />
+              Übersicht
+            </Link>
+          </Button>
+          <div className="h-5 w-px bg-border" />
+          <Button
+            size="sm"
+            onClick={handleOpenCreateSheet}
+            aria-label="Aufgabe hinzufügen"
           >
-            {m.letter}
-          </button>
-        ))}
+            <Plus className="h-4 w-4" />
+            Aufgabe hinzufügen
+          </Button>
+        </div>
       </div>
 
-      {/* PROJ-17: Task Filter Bar */}
+      {/* Task Filter Bar */}
       {!loading && !error && totalTaskCount > 0 && (
         <TaskFilterBar
           searchQuery={searchQuery}
@@ -499,14 +436,13 @@ export default function TasksPage() {
             <AlertCircle className="h-10 w-10 text-destructive/60" />
           </div>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <Button variant="outline" onClick={() => fetchTasks(range, selectedMonth ?? undefined)}>
+          <Button variant="outline" onClick={() => fetchTasks()}>
             Erneut versuchen
           </Button>
         </div>
       ) : totalTaskCount === 0 ? (
-        <AllDoneState range={range} selectedMonth={selectedMonth} onGoToPlants={() => router.push("/plants")} />
+        <AllDoneState onGoToPlants={() => router.push("/plants")} />
       ) : isFilterActive && filteredTotalCount === 0 ? (
-        /* PROJ-17: No filter results state */
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="bg-muted p-4 rounded-full mb-4">
             <Search className="h-10 w-10 text-muted-foreground/60" />
@@ -598,7 +534,7 @@ export default function TasksPage() {
                             </p>
                           )}
                         </div>
-                        {/* PROJ-17: Three-dot menu for garden tasks */}
+                        {/* Three-dot menu for garden tasks */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -742,7 +678,7 @@ export default function TasksPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* PROJ-17: Delete confirmation dialog for care tasks */}
+      {/* Delete confirmation dialog for care tasks */}
       <AlertDialog open={!!deletingCareTask} onOpenChange={(open) => { if (!open) setDeletingCareTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -765,7 +701,7 @@ export default function TasksPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* PROJ-17: Delete confirmation dialog for garden tasks (via menu) */}
+      {/* Delete confirmation dialog for garden tasks (via menu) */}
       <AlertDialog open={!!deletingGardenTask} onOpenChange={(open) => { if (!open) setDeletingGardenTask(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -919,7 +855,7 @@ function PlantGroup({
                     </p>
                   )}
                 </div>
-                {/* PROJ-17: Three-dot menu for care tasks */}
+                {/* Three-dot menu for care tasks */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -952,10 +888,8 @@ function PlantGroup({
   )
 }
 
-function AllDoneState({ range, selectedMonth, onGoToPlants }: { range: FilterRange; selectedMonth: number | null; onGoToPlants: () => void }) {
-  const rangeLabel = selectedMonth != null
-    ? MONTHS[selectedMonth - 1].name
-    : FILTER_LABELS[range].toLowerCase()
+function AllDoneState({ onGoToPlants }: { onGoToPlants: () => void }) {
+  const monthName = new Date().toLocaleDateString("de-DE", { month: "long" })
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="bg-primary/10 p-4 rounded-full mb-4">
@@ -963,7 +897,7 @@ function AllDoneState({ range, selectedMonth, onGoToPlants }: { range: FilterRan
       </div>
       <h2 className="text-lg font-medium">Alles erledigt!</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-4 max-w-xs">
-        Keine Aufgaben für &quot;{rangeLabel}&quot; fällig. Entspann dich oder schau bei deinen Pflanzen vorbei.
+        Keine Aufgaben im {monthName} fällig. Entspann dich oder schau bei deinen Pflanzen vorbei.
       </p>
       <Button variant="outline" onClick={onGoToPlants}>
         <Leaf className="h-4 w-4" />
