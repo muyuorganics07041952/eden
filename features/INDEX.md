@@ -30,7 +30,7 @@
 | PROJ-16 | Pflanzen-Liste Suche & Filter | Deployed | [PROJ-16-plant-list-search-filter.md](PROJ-16-plant-list-search-filter.md) | 2026-03-10 |
 | PROJ-17 | Aufgaben-Seite Verbesserungen | Deployed | [PROJ-17-tasks-page-improvements.md](PROJ-17-tasks-page-improvements.md) | 2026-03-11 |
 | PROJ-18 | Aufgaben-Verlauf | Deployed | [PROJ-18-care-task-completion-history.md](PROJ-18-care-task-completion-history.md) | 2026-03-13 |
-| PROJ-19 | Community Plant Tips | In Progress | [PROJ-19-community-plant-tips.md](PROJ-19-community-plant-tips.md) | 2026-03-16 |
+| PROJ-19 | Community Plant Tips | Deployed | [PROJ-19-community-plant-tips.md](PROJ-19-community-plant-tips.md) | 2026-03-16 |
 
 <!-- Add features above this line -->
 
