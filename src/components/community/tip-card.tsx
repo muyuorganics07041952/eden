@@ -303,9 +303,9 @@ export function TipCard({ tip, currentUserId, onDeleted, onLikeToggled }: TipCar
           <button
             type="button"
             onClick={handleLike}
-            disabled={liking}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={tip.has_liked ? "Like entfernen" : "Liken"}
+            disabled={liking || isOwner}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label={isOwner ? "Eigenen Tipp kann nicht geliked werden" : tip.has_liked ? "Like entfernen" : "Liken"}
           >
             <Heart
               className={`h-4 w-4 ${
