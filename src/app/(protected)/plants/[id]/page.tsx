@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Pencil, Trash2, Leaf, MapPin, Calendar, AlertCircle, Loader2 } from "lucide-react"
+import { ArrowLeft, Pencil, Trash2, Leaf, MapPin, Calendar, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,6 +13,8 @@ import { DeletePlantDialog } from "@/components/plants/delete-plant-dialog"
 import { CareTaskSection } from "@/components/care/care-task-section"
 import { CompletionHistorySection } from "@/components/care/completion-history-section"
 import type { CompletionHistoryRef } from "@/components/care/completion-history-section"
+import { CommunityTipsSection } from "@/components/community/community-tips-section"
+import { createClient } from "@/lib/supabase/client"
 import type { Plant, PlantPhoto } from "@/lib/types/plants"
 
 export default function PlantDetailPage() {
@@ -25,6 +27,14 @@ export default function PlantDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const completionHistoryRef = useRef<CompletionHistoryRef>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null)
+    })
+  }, [])
 
   const fetchPlant = useCallback(async () => {
     setLoading(true)
@@ -224,6 +234,15 @@ export default function PlantDetailPage() {
 
       {/* Completion History */}
       <CompletionHistorySection ref={completionHistoryRef} plantId={plant.id} />
+
+      {/* Community Tips */}
+      {currentUserId && (
+        <CommunityTipsSection
+          plantName={plant.name}
+          plantSpecies={plant.species ?? null}
+          currentUserId={currentUserId}
+        />
+      )}
 
       {/* Edit Sheet */}
       <EditPlantSheet
