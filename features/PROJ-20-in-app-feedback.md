@@ -48,7 +48,7 @@ Ein persistenter Floating-Button erlaubt eingeloggten Nutzern, jederzeit Feedbac
 ### Datenspeicherung
 - [ ] Jedes Feedback wird in einer Supabase-Tabelle `feedback` gespeichert mit: `id`, `user_id`, `type`, `text`, `page_url`, `created_at`
 - [ ] RLS: Nutzer können nur eigene Feedbacks einsehen (INSERT, SELECT own); kein DELETE oder UPDATE
-- [ ] Rate Limit: Max. 5 Feedbacks pro Nutzer pro 24 Stunden (gibt 429-Fehler zurück)
+- [ ] Rate Limit: Max. 50 Feedbacks pro Nutzer pro 24 Stunden (gibt 429-Fehler zurück)
 
 ---
 
@@ -66,7 +66,7 @@ Ein persistenter Floating-Button erlaubt eingeloggten Nutzern, jederzeit Feedbac
 ## Technical Requirements
 - Security: Authentifizierung erforderlich (401 für Unauthentifizierte)
 - RLS: Aktiviert auf `feedback`-Tabelle
-- Rate Limit: DB-basiert (max. 5 Feedbacks / 24h)
+- Rate Limit: DB-basiert (max. 50 Feedbacks / 24h)
 - Performance: Formular öffnet in < 100ms (clientseitig, kein API-Call beim Öffnen)
 - Keine externen API-Abhängigkeiten (nur Supabase)
 
@@ -105,7 +105,7 @@ RLS: INSERT for authenticated users; SELECT own rows only; no UPDATE or DELETE.
 ### API
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| POST | `/api/feedback` | Submit feedback (auth required, rate limit 5/24h) |
+| POST | `/api/feedback` | Submit feedback (auth required, rate limit 50/24h) |
 
 ### Tech Decisions
 | Decision | Choice | Why |
