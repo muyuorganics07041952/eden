@@ -1,6 +1,6 @@
 # PROJ-20: In-App Feedback
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-18
 **Last Updated:** 2026-03-18
 
@@ -160,4 +160,8 @@ All shadcn components (Sheet, Textarea, Button, Badge) already installed.
 ### Production Ready: YES
 
 ## Deployment
-_To be added by /deploy_
+- **Deployed:** 2026-03-18
+- **Method:** Push to main → Vercel auto-deploy
+- **Production URL:** https://eden-azure-zeta.vercel.app
+- **Migration applied:** `20260318000000_feedback.sql` (via Supabase MCP + version-controlled)
+- **QA Status:** PASSED — all bugs fixed, security audit passed
