@@ -1,6 +1,6 @@
 # PROJ-21: Android PWA Install in Settings
 
-## Status: Planned
+## Status: Deployed
 **Created:** 2026-03-18
 **Last Updated:** 2026-03-18
 
@@ -156,3 +156,10 @@ No server-side attack surface. Entirely client-side. Authentication enforced by 
 | BUG-2 | Low | Same root cause affected `InstallBanner` floating button | **Fixed** (same fix) |
 
 ### Production Ready: YES
+
+## Deployment
+- **Deployed:** 2026-03-18
+- **Method:** Push to main → Vercel auto-deploy
+- **Production URL:** https://eden-azure-zeta.vercel.app
+- **Migration applied:** None (frontend-only, no DB changes)
+- **QA Status:** PASSED — all bugs fixed, security audit passed
