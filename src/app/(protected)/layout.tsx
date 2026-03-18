@@ -5,6 +5,8 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { TasksNavLink } from '@/components/tasks-nav-link'
 import { BottomNav } from '@/components/bottom-nav'
 import { FeedbackFab } from '@/components/feedback/feedback-fab'
+import { PwaInstallProvider } from '@/components/pwa/pwa-install-context'
+import { InstallBanner } from '@/components/pwa/install-banner'
 import { Leaf, Settings, Newspaper } from 'lucide-react'
 import Link from 'next/link'
 
@@ -17,6 +19,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   }
 
   return (
+    <PwaInstallProvider>
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -56,6 +59,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       <BottomNav />
       {/* Feedback floating action button */}
       <FeedbackFab />
+      {/* PWA install banner for Android/Desktop (floating, first-visit) */}
+      <InstallBanner />
     </div>
+    </PwaInstallProvider>
   )
 }

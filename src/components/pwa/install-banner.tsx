@@ -1,18 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Download, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-/**
- * The BeforeInstallPromptEvent is not yet in TypeScript's lib.dom.d.ts,
- * so we define it manually.
- */
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[]
-  readonly userChoice: Promise<{ outcome: "accepted" | "dismissed" }>
-  prompt(): Promise<void>
-}
+import { usePwaInstall } from "@/components/pwa/pwa-install-context"
 
 const DISMISS_KEY = "eden-install-banner-dismissed"
 const DISMISS_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
@@ -25,60 +16,27 @@ function isDismissed(): boolean {
   return elapsed < DISMISS_DURATION_MS
 }
 
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true)
-  )
-}
-
 export function InstallBanner() {
-  const [isVisible, setIsVisible] = useState(false)
-  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null)
+  const { canInstall, triggerInstall } = usePwaInstall()
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    // Do not show on standalone (already installed) or if previously dismissed
-    if (isStandalone() || isDismissed()) return
-
-    function handleBeforeInstallPrompt(e: Event) {
-      // Prevent the browser's default install banner
-      e.preventDefault()
-      deferredPromptRef.current = e as BeforeInstallPromptEvent
-      setIsVisible(true)
-    }
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
-
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
-      )
-    }
+    if (isDismissed()) setDismissed(true)
   }, [])
 
   const handleInstall = useCallback(async () => {
-    const prompt = deferredPromptRef.current
-    if (!prompt) return
-
-    await prompt.prompt()
-    const { outcome } = await prompt.userChoice
-
+    const outcome = await triggerInstall()
     if (outcome === "accepted") {
-      setIsVisible(false)
+      setDismissed(true)
     }
-
-    deferredPromptRef.current = null
-  }, [])
+  }, [triggerInstall])
 
   const handleDismiss = useCallback(() => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()))
-    setIsVisible(false)
-    deferredPromptRef.current = null
+    setDismissed(true)
   }, [])
 
-  if (!isVisible) return null
+  if (!canInstall || dismissed) return null
 
   return (
     <div
