@@ -1,6 +1,6 @@
 # PROJ-20: In-App Feedback
 
-## Status: Planned
+## Status: In Review
 **Created:** 2026-03-18
 **Last Updated:** 2026-03-18
 
@@ -126,7 +126,38 @@ RLS: INSERT for authenticated users; SELECT own rows only; no UPDATE or DELETE.
 All shadcn components (Sheet, Textarea, Button, Badge) already installed.
 
 ## QA Test Results
-_To be added by /qa_
+
+**Tested:** 2026-03-18 | **Build Status:** PASS | **Overall:** PASS (all bugs fixed)
+
+### Acceptance Criteria: 11/13 PASSED → All fixed
+
+| Category | Result |
+|----------|--------|
+| Floating Button (AC-1) | PASS — FAB on all protected pages, correct position, not on public pages |
+| Feedback Form (AC-2) | PASS — type selector, textarea 10–1000 chars, page_url auto-captured |
+| Submit Behavior (AC-3) | PASS — disabled when invalid, toast, resets on success, error stays open |
+| Data Storage (AC-4) | PASS — correct schema, RLS, rate limit 50/24h |
+
+### Security Audit: PASS
+- Auth enforced (401 for unauthenticated)
+- RLS: INSERT/SELECT own only, no UPDATE/DELETE
+- XSS blocked: page_url regex rejects `javascript:` and `data:` URIs
+- No Zod error internals leaked in 422 response
+- SQL injection: parameterized queries
+
+### Bugs Found and Fixed
+
+| ID | Severity | Description | Status |
+|----|----------|-------------|--------|
+| BUG-3 | Medium | Fallback 429 message hardcoded "5" instead of "50" | **Fixed** |
+| BUG-4 (XSS) | High | page_url accepted arbitrary strings | **Fixed** (regex validation) |
+| BUG-6 | Medium | page_url allowed empty string | **Fixed** (.min(1)) |
+| BUG-2/7 | Medium | Zod error internals exposed in 422 response | **Fixed** (details removed) |
+| BUG-1 | Low | Missing umlauts in UI ("fuer", "moechtest") | **Fixed** |
+| BUG-2 (spec) | Low | Spec rate limit references said "5" instead of "50" | **Fixed** |
+| BUG-4 (counter) | Low | Character counter used raw length instead of trimmed | **Fixed** |
+
+### Production Ready: YES
 
 ## Deployment
 _To be added by /deploy_
