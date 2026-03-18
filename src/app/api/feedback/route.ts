@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { createFeedbackSchema } from '@/lib/validations/feedback'
 import type { Feedback } from '@/lib/types/feedback'
 
-const RATE_LIMIT_FEEDBACKS_PER_DAY = 5
+const RATE_LIMIT_FEEDBACKS_PER_DAY = 50
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Nicht authentifiziert.' }, { status: 401 })
   }
 
-  // 2. Rate limit: max 5 feedbacks per 24 hours
+  // 2. Rate limit: max 50 feedbacks per 24 hours
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const { count: recentCount } = await supabase
     .from('feedback')
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   if (recentCount !== null && recentCount >= RATE_LIMIT_FEEDBACKS_PER_DAY) {
     return NextResponse.json(
-      { error: 'Du hast heute schon 5 Feedbacks gesendet. Bitte versuche es morgen wieder.' },
+      { error: 'Du hast heute schon 50 Feedbacks gesendet. Bitte versuche es morgen wieder.' },
       { status: 429 }
     )
   }
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   const parsed = createFeedbackSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Ungültige Eingabe.', details: parsed.error.flatten() },
+      { error: 'Ungültige Eingabe.' },
       { status: 422 }
     )
   }
