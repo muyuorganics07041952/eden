@@ -31,7 +31,7 @@
 | PROJ-17 | Aufgaben-Seite Verbesserungen | Deployed | [PROJ-17-tasks-page-improvements.md](PROJ-17-tasks-page-improvements.md) | 2026-03-11 |
 | PROJ-18 | Aufgaben-Verlauf | Deployed | [PROJ-18-care-task-completion-history.md](PROJ-18-care-task-completion-history.md) | 2026-03-13 |
 | PROJ-19 | Community Plant Tips | Deployed | [PROJ-19-community-plant-tips.md](PROJ-19-community-plant-tips.md) | 2026-03-16 |
-| PROJ-20 | In-App Feedback | Planned | [PROJ-20-in-app-feedback.md](PROJ-20-in-app-feedback.md) | 2026-03-18 |
+| PROJ-20 | In-App Feedback | In Progress | [PROJ-20-in-app-feedback.md](PROJ-20-in-app-feedback.md) | 2026-03-18 |
 
 <!-- Add features above this line -->
 

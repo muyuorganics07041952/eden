@@ -74,7 +74,56 @@ Ein persistenter Floating-Button erlaubt eingeloggten Nutzern, jederzeit Feedbac
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Component Structure
+```
+Protected Layout (src/app/(protected)/layout.tsx)  ← modified: add FeedbackFab
+├── [existing: Header, main content, BottomNav]
+└── FeedbackFab  (src/components/feedback/feedback-fab.tsx)
+    Floating button fixed bottom-right (bottom-20 mobile / bottom-6 desktop)
+    Manages open/closed Sheet state
+    └── FeedbackSheet  (src/components/feedback/feedback-sheet.tsx)
+        shadcn Sheet (slides from bottom)
+        ├── Type Selector — 3 toggle chips: Bug / Idee / Lob
+        ├── Textarea (10–1000 chars) with live character counter
+        └── Submit Button (disabled when invalid or loading)
+```
+
+### Data Model
+**New table: `feedback`**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID | Auto-generated primary key |
+| user_id | UUID | References auth.users — ON DELETE SET NULL |
+| type | TEXT | 'bug', 'idea', or 'praise' |
+| text | TEXT | Required, 10–1000 chars |
+| page_url | TEXT | Full URL captured client-side at sheet open |
+| created_at | Timestamp | Auto-set to now() |
+
+RLS: INSERT for authenticated users; SELECT own rows only; no UPDATE or DELETE.
+
+### API
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/feedback` | Submit feedback (auth required, rate limit 5/24h) |
+
+### Tech Decisions
+| Decision | Choice | Why |
+|----------|--------|-----|
+| FAB placement | Protected layout | Auto-appears on all protected pages — no per-page work |
+| Sheet component | shadcn Sheet (already installed) | Consistent with existing ShareTipSheet pattern |
+| Page URL | `window.location.href` at sheet open | Captures the page user was on when they clicked |
+| Rate limiting | DB-based count (same as community tips) | Works in serverless, no Redis needed |
+| FAB is client component | Separate component imported by server layout | Layout stays a server component; FAB handles its own state |
+
+### New Files
+- `src/components/feedback/feedback-fab.tsx`
+- `src/components/feedback/feedback-sheet.tsx`
+- `src/app/api/feedback/route.ts`
+- `supabase/migrations/20260318000000_feedback.sql`
+
+### No New Dependencies
+All shadcn components (Sheet, Textarea, Button, Badge) already installed.
 
 ## QA Test Results
 _To be added by /qa_
