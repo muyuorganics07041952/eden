@@ -4,6 +4,7 @@ import LogoutButton from '@/components/logout-button'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { TasksNavLink } from '@/components/tasks-nav-link'
 import { BottomNav } from '@/components/bottom-nav'
+import { FeedbackFab } from '@/components/feedback/feedback-fab'
 import { Leaf, Settings, Newspaper } from 'lucide-react'
 import Link from 'next/link'
 
@@ -53,6 +54,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       </main>
       {/* Mobile bottom navigation – hidden on sm and above */}
       <BottomNav />
+      {/* Feedback floating action button */}
+      <FeedbackFab />
     </div>
   )
 }
