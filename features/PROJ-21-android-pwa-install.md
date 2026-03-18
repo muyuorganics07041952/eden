@@ -129,3 +129,30 @@ Protected Layout (layout.tsx) — modifiziert: PwaInstallProvider hinzufügen
 ### Kein Backend, keine Migration
 
 Alles läuft im Browser. Kein Datenbankzugriff, keine API-Endpoints, keine Migrationen.
+
+---
+
+## QA Test Results
+
+**Tested:** 2026-03-18 | **Build Status:** PASS | **Overall:** PASS (all bugs fixed)
+
+### Acceptance Criteria: 11/11 PASSED
+
+| Category | Result |
+|----------|--------|
+| Android Install Card (AC-1) | PASS — button triggers native prompt; hides after dismiss; reappears when browser re-fires event |
+| Already Installed / Standalone (AC-2) | PASS — "App installiert" shown for iOS and Android |
+| No Install-Prompt Available (AC-3) | PASS — card not shown on Firefox Android etc. |
+| No Regression (AC-4) | PASS — iOS guide unchanged; existing InstallBanner unchanged |
+
+### Security Audit: PASS
+No server-side attack surface. Entirely client-side. Authentication enforced by existing protected layout redirect.
+
+### Bugs Found and Fixed
+
+| ID | Severity | Description | Status |
+|----|----------|-------------|--------|
+| BUG-1 | Medium | `triggerInstall()` nulled prompt ref but kept `canInstall=true` on dismissal → dead button | **Fixed** (set `canInstall=false` on any outcome) |
+| BUG-2 | Low | Same root cause affected `InstallBanner` floating button | **Fixed** (same fix) |
+
+### Production Ready: YES
