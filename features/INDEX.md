@@ -32,7 +32,7 @@
 | PROJ-18 | Aufgaben-Verlauf | Deployed | [PROJ-18-care-task-completion-history.md](PROJ-18-care-task-completion-history.md) | 2026-03-13 |
 | PROJ-19 | Community Plant Tips | Deployed | [PROJ-19-community-plant-tips.md](PROJ-19-community-plant-tips.md) | 2026-03-16 |
 | PROJ-20 | In-App Feedback | Deployed | [PROJ-20-in-app-feedback.md](PROJ-20-in-app-feedback.md) | 2026-03-18 |
-| PROJ-21 | Android PWA Install in Settings | Planned | [PROJ-21-android-pwa-install.md](PROJ-21-android-pwa-install.md) | 2026-03-18 |
+| PROJ-21 | Android PWA Install in Settings | In Progress | [PROJ-21-android-pwa-install.md](PROJ-21-android-pwa-install.md) | 2026-03-18 |
 
 <!-- Add features above this line -->
 

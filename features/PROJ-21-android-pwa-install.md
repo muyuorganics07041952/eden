@@ -68,3 +68,64 @@ Android-Nutzer können Eden über den Browser als App auf ihrem Homescreen insta
 - Plattform-Detection clientseitig (SSR-sicher mit `useEffect`)
 - Geteilter Prompt-State zwischen `InstallBanner` und der neuen Settings-Karte (damit der Prompt nicht verloren geht, wenn beide Komponenten gleichzeitig mounten)
 - Performance: Karte öffnet sofort (kein API-Call nötig)
+
+---
+
+## Tech Design (Solution Architect)
+
+### Kernproblem: Der Browser feuert `beforeinstallprompt` genau einmal
+
+Das Browser-Event, das die native Install-Funktion bereitstellt, erscheint einmal kurz nach dem Seitenaufruf. Bisher fängt es der `InstallBanner` für sich allein. Da die Settings-Karte auf einer anderen Unterseite liegt, kommt sie zu spät — das Event ist weg.
+
+**Lösung:** Ein zentraler "PWA Install Provider" fängt das Event einmalig für die gesamte App ab und teilt es mit allen Komponenten, die es brauchen.
+
+### Komponenten-Struktur
+
+```
+Protected Layout (layout.tsx) — modifiziert: PwaInstallProvider hinzufügen
+└── PwaInstallProvider (NEU: src/components/pwa/pwa-install-context.tsx)
+    │   Fängt beforeinstallprompt einmalig ab
+    │   Stellt canInstall, isInstalled und triggerInstall() bereit
+    │
+    ├── InstallBanner (MODIFIZIERT: src/components/pwa/install-banner.tsx)
+    │       Liest canInstall und triggerInstall() aus dem Provider
+    │       (kein eigenes Event-Listener mehr)
+    │
+    └── Settings Page → InstallGuideCard (ERWEITERT: src/components/settings/install-guide-card.tsx)
+            iOS: zeigt weiterhin Safari-Schritt-für-Schritt-Anleitung
+            Android (canInstall=true): zeigt "Jetzt installieren"-Button
+            Bereits installiert (isInstalled=true): zeigt "App installiert"-Bestätigung
+            Kein Prompt verfügbar (iOS=false, canInstall=false): Karte bleibt ausgeblendet
+```
+
+### Zustandslogik der InstallGuideCard
+
+| Situation | Was die Karte zeigt |
+|-----------|---------------------|
+| App bereits installiert (standalone) | "App installiert" — für iOS und Android |
+| iOS, nicht installiert | Safari-Anleitung (3 Schritte) |
+| Android/Desktop, Install-Prompt verfügbar | "Jetzt installieren"-Button |
+| Alles andere (Firefox Android, etc.) | Karte wird gar nicht angezeigt |
+
+### Tech-Entscheidungen
+
+| Entscheidung | Wahl | Warum |
+|---|---|---|
+| State-Sharing | React Context (PwaInstallProvider) | Sauberste Lösung ohne globale Variablen; der Provider lebt direkt im Protected Layout und überlebt alle Seitennavigationen |
+| InstallBanner | Auf Context umgestellt | Verhindert Race Condition (beide hören auf dasselbe Event) — nur der Provider hört zu |
+| InstallGuideCard | Erweitert, nicht neu | Settings-Seite muss gar nicht angefasst werden — `<InstallGuideCard />` bleibt identisch |
+| Backend | Keiner | Rein clientseitige Browser-API — keine DB, kein API-Endpoint |
+| Neue Pakete | Keine | React Context ist eingebaut |
+
+### Geänderte / neue Dateien
+
+| Datei | Aktion | Was sich ändert |
+|-------|--------|----------------|
+| `src/components/pwa/pwa-install-context.tsx` | **NEU** | Context + Provider, fängt `beforeinstallprompt` ab |
+| `src/components/pwa/install-banner.tsx` | Modifiziert | Liest aus Context statt eigenes Listener |
+| `src/components/settings/install-guide-card.tsx` | Erweitert | Android-Zweig hinzugefügt |
+| `src/app/(protected)/layout.tsx` | Modifiziert | PwaInstallProvider hinzufügen |
+
+### Kein Backend, keine Migration
+
+Alles läuft im Browser. Kein Datenbankzugriff, keine API-Endpoints, keine Migrationen.
