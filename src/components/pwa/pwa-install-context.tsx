@@ -70,9 +70,9 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     const { outcome } = await prompt.userChoice
 
     deferredPromptRef.current = null
+    setCanInstall(false)
 
     if (outcome === "accepted") {
-      setCanInstall(false)
       setIsInstalled(true)
     }
 
