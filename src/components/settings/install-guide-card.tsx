@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Smartphone, Share, Download, Loader2 } from "lucide-react"
+import { Smartphone, Share, Download, Loader2, MoreVertical } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -15,6 +15,11 @@ import { usePwaInstall } from "@/components/pwa/pwa-install-context"
 function isIOS(): boolean {
   if (typeof navigator === "undefined") return false
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
+}
+
+function isAndroid(): boolean {
+  if (typeof navigator === "undefined") return false
+  return /Android/.test(navigator.userAgent)
 }
 
 export function InstallGuideCard() {
@@ -95,7 +100,7 @@ export function InstallGuideCard() {
     )
   }
 
-  // Android / Desktop: native install prompt
+  // Android with native install prompt available — one-tap install
   if (canInstall) {
     return (
       <Card>
@@ -130,6 +135,55 @@ export function InstallGuideCard() {
     )
   }
 
-  // No install option available (Firefox Android, etc.)
+  // Android without native prompt — manual Chrome menu guide
+  if (isAndroid()) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Smartphone className="h-5 w-5 text-primary" />
+            Eden als App installieren
+          </CardTitle>
+          <CardDescription>
+            Nutze Eden wie eine native App auf deinem Android-Gerät.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ol className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                1
+              </span>
+              <span>
+                Tippe auf das{" "}
+                <MoreVertical className="inline h-4 w-4 -mt-0.5" aria-hidden="true" />{" "}
+                <strong>Menü</strong> (drei Punkte) oben rechts in Chrome.
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                2
+              </span>
+              <span>
+                Tippe auf{" "}
+                <strong>&quot;Zum Startbildschirm hinzufügen&quot;</strong>.
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                3
+              </span>
+              <span>
+                Bestätige mit <strong>&quot;Hinzufügen&quot;</strong> — Eden
+                erscheint als App-Icon auf deinem Homescreen.
+              </span>
+            </li>
+          </ol>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Desktop or unsupported browser without install prompt
   return null
 }
