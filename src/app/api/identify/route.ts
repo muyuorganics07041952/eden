@@ -97,6 +97,8 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         images: [`data:${imageFile.type};base64,${base64}`],
+        details: 'common_names',
+        language: 'de',
       }),
       signal: controller.signal,
     })
