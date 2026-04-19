@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), API_TIMEOUT)
 
-    const response = await fetch(PLANT_ID_API_URL, {
+    const response = await fetch(`${PLANT_ID_API_URL}?details=common_names&language=de`, {
       method: 'POST',
       headers: {
         'Api-Key': apiKey,
@@ -97,8 +97,6 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         images: [`data:${imageFile.type};base64,${base64}`],
-        details: 'common_names',
-        language: 'de',
       }),
       signal: controller.signal,
     })
