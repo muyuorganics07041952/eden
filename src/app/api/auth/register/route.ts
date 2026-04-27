@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { registerSchema } from '@/lib/validations/auth'
 import { NextResponse } from 'next/server'
+import { sendTelegramMessage, newUserMessage } from '@/lib/telegram'
 
 export async function POST(request: Request) {
   try {
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
 
     // If a session is returned, user is immediately logged in (email confirmation disabled)
     if (data.session) {
+      sendTelegramMessage(newUserMessage(data.user!.email!))
       return NextResponse.json({
         user: { id: data.user!.id, email: data.user!.email },
         session: true,

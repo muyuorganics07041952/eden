@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendTelegramMessage, newUserMessage } from '@/lib/telegram'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
       const message = encodeURIComponent('Der Link ist abgelaufen oder ungueltig. Bitte versuche es erneut.')
@@ -27,6 +28,11 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/reset-password?error=${message}`)
       }
       return NextResponse.redirect(`${origin}/login?error=${message}`)
+    }
+
+    // Notify on email confirmation (not password recovery)
+    if (type !== 'recovery' && data.user?.email) {
+      sendTelegramMessage(newUserMessage(data.user.email))
     }
   }
 
