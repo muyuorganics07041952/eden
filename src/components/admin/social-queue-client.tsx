@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -34,10 +34,29 @@ interface Props {
 export function SocialQueueClient({ initialPending, initialApproved, initialHistory }: Props) {
   const [pending, setPending] = useState(initialPending)
   const [approved, setApproved] = useState(initialApproved)
-  const [history] = useState(initialHistory)
+  const [history, setHistory] = useState(initialHistory)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editedContent, setEditedContent] = useState("")
   const [loading, setLoading] = useState<string | null>(null)
+  const [fetching, setFetching] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [p, a, h] = await Promise.all([
+          fetch('/api/admin/social?status=pending').then(r => r.json()),
+          fetch('/api/admin/social?status=approved').then(r => r.json()),
+          fetch('/api/admin/social?status=posted').then(r => r.json()),
+        ])
+        setPending(p.items ?? [])
+        setApproved(a.items ?? [])
+        setHistory(h.items ?? [])
+      } finally {
+        setFetching(false)
+      }
+    }
+    load()
+  }, [])
 
   async function handleAction(id: string, action: 'approve' | 'reject', content?: string) {
     setLoading(id)
@@ -66,6 +85,17 @@ export function SocialQueueClient({ initialPending, initialApproved, initialHist
   function startEdit(item: QueueItem) {
     setEditingId(item.id)
     setEditedContent(item.generated_content)
+  }
+
+  if (fetching) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <div className="grid grid-cols-3 gap-4">
+          {[1,2,3].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />)}
+        </div>
+      </div>
+    )
   }
 
   return (
