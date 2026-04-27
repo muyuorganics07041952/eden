@@ -8,8 +8,6 @@ import { InstallGuideCard } from "@/components/settings/install-guide-card"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL
-
 export default async function SettingsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -57,19 +55,17 @@ export default async function SettingsPage() {
 
       <InstallGuideCard />
 
-      {(!ADMIN_EMAIL || user.email === ADMIN_EMAIL) && (
-        <Link href="/admin/social">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-            <CardContent className="pt-4 flex items-center gap-3">
-              <Send className="h-5 w-5 text-primary" />
-              <div>
-                <div className="font-medium text-sm">Social Media Queue</div>
-                <div className="text-xs text-muted-foreground">Posts genehmigen und verwalten</div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+      <Link href="/admin/social">
+        <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+          <CardContent className="pt-4 flex items-center gap-3">
+            <Send className="h-5 w-5 text-primary" />
+            <div>
+              <div className="font-medium text-sm">Social Media Queue</div>
+              <div className="text-xs text-muted-foreground">Posts genehmigen und verwalten</div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   )
 }
