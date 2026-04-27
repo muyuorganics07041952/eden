@@ -13,11 +13,14 @@ export default async function SocialAdminPage() {
   if (ADMIN_EMAIL && user.email !== ADMIN_EMAIL) redirect('/dashboard')
 
   const admin = createAdminClient()
-  const [{ data: pending }, { data: approved }, { data: history }] = await Promise.all([
+  const [pendingRes, approvedRes, historyRes] = await Promise.all([
     admin.from('social_queue').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
     admin.from('social_queue').select('*').eq('status', 'approved').order('approved_at', { ascending: false }).limit(20),
     admin.from('social_history').select('*').order('posted_at', { ascending: false }).limit(20),
   ])
+  const pending = pendingRes.data
+  const approved = approvedRes.data
+  const history = historyRes.data
 
   return (
     <SocialQueueClient
