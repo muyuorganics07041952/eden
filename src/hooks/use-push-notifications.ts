@@ -45,6 +45,15 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray
 }
 
+function swReady(timeoutMs = 10000): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Service Worker nicht bereit. Bitte App neu starten.")), timeoutMs)
+    ),
+  ])
+}
+
 export function usePushNotifications(): PushNotificationState {
   const [permission, setPermission] = useState<PushPermissionState>("unsupported")
   const [isSubscribed, setIsSubscribed] = useState(false)
@@ -61,7 +70,7 @@ export function usePushNotifications(): PushNotificationState {
     if (perm === "unsupported") return
 
     // Check if we already have a subscription
-    navigator.serviceWorker.ready
+    swReady()
       .then((registration) => registration.pushManager.getSubscription())
       .then((subscription) => {
         setIsSubscribed(!!subscription)
@@ -82,8 +91,7 @@ export function usePushNotifications(): PushNotificationState {
         return false
       }
 
-      // Wait for the service worker (registered by next-pwa) to be ready
-      const registration = await navigator.serviceWorker.ready
+      const registration = await swReady()
 
       // Request permission if needed
       const result = await Notification.requestPermission()
@@ -92,6 +100,12 @@ export function usePushNotifications(): PushNotificationState {
       if (result !== "granted") {
         setError("Berechtigung wurde nicht erteilt.")
         return false
+      }
+
+      // Clear any existing subscription first (handles VAPID key rotation)
+      const existing = await registration.pushManager.getSubscription()
+      if (existing) {
+        await existing.unsubscribe()
       }
 
       // Subscribe with the push manager
@@ -137,7 +151,7 @@ export function usePushNotifications(): PushNotificationState {
     setError(null)
 
     try {
-      const registration = await navigator.serviceWorker.ready
+      const registration = await swReady()
       const subscription = await registration.pushManager.getSubscription()
 
       if (subscription) {
