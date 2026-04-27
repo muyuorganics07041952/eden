@@ -33,10 +33,11 @@
 | PROJ-19 | Community Plant Tips | Deployed | [PROJ-19-community-plant-tips.md](PROJ-19-community-plant-tips.md) | 2026-03-16 |
 | PROJ-20 | In-App Feedback | Deployed | [PROJ-20-in-app-feedback.md](PROJ-20-in-app-feedback.md) | 2026-03-18 |
 | PROJ-21 | Android PWA Install in Settings | Deployed | [PROJ-21-android-pwa-install.md](PROJ-21-android-pwa-install.md) | 2026-03-18 |
+| PROJ-22 | Telegram New User Notification | Deployed | — | 2026-04-27 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-22
+## Next Available ID: PROJ-23
 
 ## Build Order (Recommended)
 1. **PROJ-1** — Auth (Fundament für alles)
