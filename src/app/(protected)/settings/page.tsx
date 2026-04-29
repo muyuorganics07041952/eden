@@ -55,17 +55,19 @@ export default async function SettingsPage() {
 
       <InstallGuideCard />
 
-      <Link href="/admin/social">
-        <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-          <CardContent className="pt-4 flex items-center gap-3">
-            <Send className="h-5 w-5 text-primary" />
-            <div>
-              <div className="font-medium text-sm">Social Media Queue</div>
-              <div className="text-xs text-muted-foreground">Posts genehmigen und verwalten</div>
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
+      {user.email === 'muyu.organics@gmail.com' && (
+        <Link href="/admin/social">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardContent className="pt-4 flex items-center gap-3">
+              <Send className="h-5 w-5 text-primary" />
+              <div>
+                <div className="font-medium text-sm">Social Media Queue</div>
+                <div className="text-xs text-muted-foreground">Posts genehmigen und verwalten</div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
     </div>
   )
 }
