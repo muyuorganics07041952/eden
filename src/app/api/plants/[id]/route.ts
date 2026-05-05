@@ -37,15 +37,18 @@ export async function GET(
     return NextResponse.json({ error: 'Pflanze nicht gefunden.' }, { status: 404 })
   }
 
-  // Generate signed URLs for all photos
-  const photosWithUrls = await Promise.all(
-    (plant.plant_photos ?? []).map(async (photo) => {
-      const { data } = await supabase.storage
-        .from('plant-photos')
-        .createSignedUrl(photo.storage_path, 3600)
-      return { ...photo, url: data?.signedUrl ?? '' }
-    })
-  )
+  // Batch-sign all photos in one Storage call instead of M sequential calls
+  const photos = plant.plant_photos ?? []
+  const paths = photos.map((p) => p.storage_path)
+  const { data: signedUrls } = paths.length > 0
+    ? await supabase.storage.from('plant-photos').createSignedUrls(paths, 3600)
+    : { data: [] }
+
+  const urlMap = new Map((signedUrls ?? []).map((s) => [s.path, s.signedUrl]))
+  const photosWithUrls = photos.map((photo) => ({
+    ...photo,
+    url: urlMap.get(photo.storage_path) ?? '',
+  }))
 
   return NextResponse.json({ ...plant, plant_photos: photosWithUrls })
 }

@@ -39,21 +39,36 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Fehler beim Laden der Pflanzen.' }, { status: 500 })
   }
 
-  // Generate signed URLs for cover photos
-  const plantsWithUrls = await Promise.all(
-    (plants ?? []).map(async (plant) => {
-      const photos = plant.plant_photos ?? []
-      const photosWithUrls = await Promise.all(
-        photos.map(async (photo) => {
-          const { data } = await supabase.storage
-            .from('plant-photos')
-            .createSignedUrl(photo.storage_path, 3600)
-          return { ...photo, url: data?.signedUrl ?? '' }
-        })
-      )
-      return { ...plant, plant_photos: photosWithUrls }
-    })
-  )
+  // Collect only the cover photo path per plant (first photo if none marked as cover).
+  // The detail page generates URLs for all photos; the list only needs the thumbnail.
+  const plantList = plants ?? []
+  const coverPaths: string[] = []
+  for (const plant of plantList) {
+    const photos = plant.plant_photos ?? []
+    const cover = photos.find((p) => p.is_cover) ?? photos[0] ?? null
+    if (cover) coverPaths.push(cover.storage_path)
+  }
+
+  // One batch call for all cover photos instead of N×M individual calls
+  const { data: signedUrls } = coverPaths.length > 0
+    ? await supabase.storage.from('plant-photos').createSignedUrls(coverPaths, 3600)
+    : { data: [] }
+
+  const urlMap = new Map((signedUrls ?? []).map((s) => [s.path, s.signedUrl]))
+
+  const plantsWithUrls = plantList.map((plant) => {
+    const photos = plant.plant_photos ?? []
+    const cover = photos.find((p) => p.is_cover) ?? photos[0] ?? null
+    return {
+      ...plant,
+      plant_photos: photos.map((photo) => ({
+        ...photo,
+        url: cover && photo.storage_path === cover.storage_path
+          ? (urlMap.get(photo.storage_path) ?? '')
+          : '',
+      })),
+    }
+  })
 
   return NextResponse.json(plantsWithUrls)
 }

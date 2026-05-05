@@ -37,6 +37,19 @@ function getTodayISO(): string {
   return new Date().toISOString().split('T')[0]
 }
 
+function getSeasonContext(): { month: string; season: string } {
+  const now = new Date()
+  const m = now.getMonth() + 1 // 1-12
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+  const month = months[m - 1]
+  let season: string
+  if (m >= 3 && m <= 5) season = 'Frühling'
+  else if (m >= 6 && m <= 8) season = 'Sommer'
+  else if (m >= 9 && m <= 11) season = 'Herbst'
+  else season = 'Winter'
+  return { month, season }
+}
+
 function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr + 'T00:00:00Z')
   date.setUTCDate(date.getUTCDate() + days)
@@ -99,17 +112,30 @@ export async function POST(
   const safeName = plant.name.replace(/[\r\n]+/g, ' ').trim().slice(0, 100)
   const safeSpecies = (plant.species || 'unbekannt').replace(/[\r\n]+/g, ' ').trim().slice(0, 100)
 
-  const prompt = `Du bist ein Pflanzenexperte. Erstelle einen Pflegeplan für folgende Pflanze:
+  const { month, season } = getSeasonContext()
+
+  const prompt = `Du bist ein deutschsprachiger Pflanzenexperte für den DACH-Raum (Deutschland, Österreich, Schweiz).
+Erstelle einen saisonalen Pflegeplan für folgende Pflanze:
 - Name: ${safeName}
 - Art/Gattung: ${safeSpecies}
+- Aktueller Monat: ${month} (${season})
+- Klimazone: Mitteleuropa (DACH)
 
-Antworte NUR mit einem JSON-Array (kein Markdown, keine Erklärung) mit 3-5 Pflegeaufgaben.
+Antworte NUR mit einem JSON-Array (kein Markdown, keine Erklärung) mit 4-5 Pflegeaufgaben.
+
 Jede Aufgabe hat folgende Felder:
-- "name": string (z.B. "Gießen", "Düngen", "Beschneiden", "Umtopfen")
+- "name": string (z.B. "Gießen", "Düngen", "Beschneiden", "Umtopfen", "Überwintern", "Schädlingskontrolle")
 - "frequency": one of ["daily","weekly","biweekly","monthly","three_months","six_months","yearly","custom"]
 - "interval_days": number (nur bei "custom", sonst weglassen oder null)
-- "notes": string (kurze Anleitung auf Deutsch, max 100 Zeichen)
-- "days_until_first": number (in wie vielen Tagen die erste Aufgabe fällig ist, min 0)`
+- "notes": string (konkrete Pflegeanleitung auf Deutsch, saisonbezogen, max 150 Zeichen)
+- "days_until_first": number (in wie vielen Tagen die erste Aufgabe fällig ist, min 0, basierend auf aktuellem Monat)
+
+Saisonale Regeln für DACH-Klima:
+- Gießen: im Sommer häufiger (täglich/wöchentlich), im Winter deutlich reduzieren (monatlich oder custom)
+- Düngen: nur in der Wachstumsphase März–September, im Winter pausieren
+- Beschneiden: artgerecht terminieren (z.B. Obstbäume im Winter, Rosen im Frühjahr)
+- Überwintern: bei frostempfindlichen Pflanzen im Herbst/Winter als Aufgabe ergänzen
+- "days_until_first": 0 wenn sofort fällig, sonst realistisch nach Saisonplan setzen`
 
   try {
     const controller = new AbortController()

@@ -12,7 +12,9 @@ import Link from 'next/link'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession reads from cookie (no network call) — security already enforced by middleware
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
 
   if (!user) {
     redirect('/login')

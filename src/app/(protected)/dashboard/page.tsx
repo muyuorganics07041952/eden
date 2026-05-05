@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Leaf, Newspaper } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,36 +28,51 @@ function getWeatherGreeting(
   return 'Schau nach deinen Pflanzen und genieße deinen Garten. 🌱'
 }
 
+const PREVIEW_FIELDS = 'id, title, summary, category, reading_time, created_at'
+
+// Cache feed articles for 1 hour — they only change when the daily cron runs.
+// Uses service client (no cookies) so it can run inside unstable_cache.
+const getCachedFeedArticles = unstable_cache(
+  async (userId: string) => {
+    const supabase = createServiceClient()
+    const [{ data: personalized }, { data: general }] = await Promise.all([
+      supabase
+        .from('feed_articles')
+        .select(PREVIEW_FIELDS)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(3),
+      supabase
+        .from('feed_articles')
+        .select(PREVIEW_FIELDS)
+        .is('user_id', null)
+        .order('created_at', { ascending: false })
+        .limit(3),
+    ])
+    return { personalized: personalized ?? [], general: general ?? [] }
+  },
+  ['feed-articles'],
+  { revalidate: 3600 }
+)
+
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession reads from cookie (no network call) — security enforced by middleware
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
 
-  const PREVIEW_FIELDS = 'id, title, summary, category, reading_time, created_at'
   const today = new Date().toISOString().split('T')[0]
 
   const [
     { count: plantCount },
-    { data: personalizedArticles },
-    { data: generalArticles },
     { data: overdueTasksRaw },
     { data: userSettings },
+    feedArticles,
   ] = await Promise.all([
     supabase
       .from('plants')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user!.id),
-    supabase
-      .from('feed_articles')
-      .select(PREVIEW_FIELDS)
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false })
-      .limit(3),
-    supabase
-      .from('feed_articles')
-      .select(PREVIEW_FIELDS)
-      .is('user_id', null)
-      .order('created_at', { ascending: false })
-      .limit(3),
     supabase
       .from('care_tasks')
       .select('plant_id, plants(name)')
@@ -67,7 +83,11 @@ export default async function DashboardPage() {
       .select('city_name, latitude, longitude, display_name')
       .eq('user_id', user!.id)
       .maybeSingle(),
+    getCachedFeedArticles(user!.id),
   ])
+
+  const personalizedArticles = feedArticles.personalized
+  const generalArticles = feedArticles.general
 
   // Fetch today's weather for the contextual greeting
   let weatherGreeting: string | null = null

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Bell, BellOff, AlertCircle, CheckCircle2, Loader2, Info } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Bell, BellOff, AlertCircle, CheckCircle2, Loader2, Info, Send } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -42,12 +43,44 @@ export function NotificationSettingsCard({
 
   const [reminderHour, setReminderHour] = useState(initialReminderHour)
   const [hourSaved, setHourSaved] = useState(false)
+  const [testStatus, setTestStatus] = useState<"idle" | "sending" | "ok" | "error">("idle")
+  const [testError, setTestError] = useState<string | null>(null)
+  const [isStandalone, setIsStandalone] = useState(true)
+  const [isIos, setIsIos] = useState(false)
+
+  useEffect(() => {
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    setIsIos(ios)
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
+    setIsStandalone(standalone)
+  }, [])
 
   async function handleToggle(checked: boolean) {
     if (checked) {
       await subscribe(reminderHour)
     } else {
       await unsubscribe()
+    }
+  }
+
+  async function handleTestPush() {
+    setTestStatus("sending")
+    setTestError(null)
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) {
+        setTestStatus("error")
+        setTestError(data.error ?? "Fehler beim Senden.")
+      } else {
+        setTestStatus("ok")
+        setTimeout(() => setTestStatus("idle"), 4000)
+      }
+    } catch {
+      setTestStatus("error")
+      setTestError("Netzwerkfehler.")
     }
   }
 
@@ -113,6 +146,16 @@ export function NotificationSettingsCard({
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* iOS: must be installed as PWA on Home Screen */}
+        {isIos && !isStandalone && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <strong>iPhone:</strong> Push-Benachrichtigungen funktionieren nur wenn die App am Home-Bildschirm installiert ist. Tippe auf <strong>Teilen → Zum Home-Bildschirm</strong> und öffne die App von dort.
+            </AlertDescription>
           </Alert>
         )}
 
@@ -186,6 +229,33 @@ export function NotificationSettingsCard({
             </Select>
           </div>
         </div>
+        {/* Test push button — only shown when subscribed */}
+        {isSubscribed && (
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTestPush}
+              disabled={testStatus === "sending"}
+              className="w-full"
+            >
+              {testStatus === "sending" ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : testStatus === "ok" ? (
+                <CheckCircle2 className="h-4 w-4 mr-2 text-primary" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              {testStatus === "ok" ? "Test gesendet!" : "Test-Benachrichtigung senden"}
+            </Button>
+            {testStatus === "error" && testError && (
+              <p className="text-xs text-destructive">{testError}</p>
+            )}
+            {testStatus === "ok" && (
+              <p className="text-xs text-muted-foreground">Schau auf dein Gerät — die Notification sollte gleich erscheinen.</p>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
