@@ -55,8 +55,8 @@ Regeln:
 
 Antworte NUR als JSON:
 {
-  "title": "Titel (max 200 Zeichen, kein Clickbait)",
-  "body": "Post-Text (250-500 Wörter, mit Markdown)"
+  "title": "Titel (max 150 Zeichen, kein Clickbait)",
+  "body": "Post-Text (150-250 Wörter, mit Markdown)"
 }`
 
   const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -105,12 +105,16 @@ Antworte NUR als JSON:
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const preview = post.body.length > 400 ? post.body.slice(0, 400) + '...' : post.body
+  const maxBody = 3000
+  const bodyPreview = post.body.length > maxBody
+    ? post.body.slice(0, maxBody).trimEnd() + '...'
+    : post.body
+
   await sendTelegramMessage(
     `📝 <b>Neuer Reddit-Post-Entwurf</b>\n\n` +
     `🎯 ${subreddit.sub}\n` +
     `📌 <b>${post.title}</b>\n\n` +
-    `${preview}\n\n` +
+    `${bodyPreview}\n\n` +
     `✏️ Kopiere den Text und poste ihn manuell auf Reddit.`
   )
 
