@@ -13,6 +13,7 @@ jobs:
       - name: Generate Reddit post draft
         run: |
           RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            --max-time 90 \
             -X POST \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/admin/social/generate")
