@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 
 const AUTH_ROUTES = ['/login', '/register', '/reset-password', '/update-password']
-const PUBLIC_ROUTES = ['/auth/callback', '/api/auth', '/api/feed/generate', '/api/push/send']
+const PUBLIC_ROUTES = ['/auth/callback', '/api/auth', '/api/feed/generate', '/api/push/send', '/api/admin/social/generate']
 
 export async function proxy(request: NextRequest) {
   // Rate limiting on /api/* routes (only active when Upstash env vars are configured)
