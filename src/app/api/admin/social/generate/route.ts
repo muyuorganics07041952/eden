@@ -88,6 +88,10 @@ Antworte NUR als JSON:
 
   const generatedContent = `**${post.title}**\n\n${post.body}`
 
+  function escapeHtml(text: string) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
   const admin = createAdminClient()
   const { data: queued, error } = await admin
     .from('social_queue')
@@ -112,9 +116,9 @@ Antworte NUR als JSON:
 
   await sendTelegramMessage(
     `📝 <b>Neuer Reddit-Post-Entwurf</b>\n\n` +
-    `🎯 ${subreddit.sub}\n` +
-    `📌 <b>${post.title}</b>\n\n` +
-    `${bodyPreview}\n\n` +
+    `🎯 ${escapeHtml(subreddit.sub)}\n` +
+    `📌 <b>${escapeHtml(post.title)}</b>\n\n` +
+    `${escapeHtml(bodyPreview)}\n\n` +
     `✏️ Kopiere den Text und poste ihn manuell auf Reddit.`
   )
 
