@@ -42,31 +42,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ sent: 0, skipped: 0, errors: 0 })
   }
 
-  // Filter subscriptions where the current UTC time matches the user's local reminder hour
-  const now = new Date()
-  const matchingSubscriptions = (subscriptions as PushSubscriptionData[]).filter((sub) => {
-    try {
-      const localHourStr = now.toLocaleString('en-US', {
-        timeZone: sub.timezone,
-        hour: 'numeric',
-        hour12: false,
-      })
-      const localHour = parseInt(localHourStr, 10)
-      return localHour === sub.reminder_hour
-    } catch {
-      // Invalid timezone — skip this subscription
-      console.warn(`Invalid timezone for subscription ${sub.id}: ${sub.timezone}`)
-      return false
-    }
-  })
-
   let sent = 0
   let skipped = 0
   let errors = 0
 
   // Group subscriptions by user to avoid duplicate task queries
   const byUser = new Map<string, PushSubscriptionData[]>()
-  for (const sub of matchingSubscriptions) {
+  for (const sub of subscriptions as PushSubscriptionData[]) {
     const existing = byUser.get(sub.user_id)
     if (existing) {
       existing.push(sub)

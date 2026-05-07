@@ -51,7 +51,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                "relative flex flex-col items-center gap-0.5 flex-1 py-2 transition-colors",
+                "relative flex flex-col items-center gap-0.5 flex-1 py-2 transition-colors touch-manipulation active:opacity-60",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
               aria-current={isActive ? "page" : undefined}
