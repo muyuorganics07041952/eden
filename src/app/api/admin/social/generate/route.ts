@@ -40,23 +40,24 @@ export async function POST(request: Request) {
   const angle = POST_ANGLES[Math.floor(Math.random() * POST_ANGLES.length)]
   const currentMonth = new Date().toLocaleString('de-AT', { month: 'long', timeZone: 'Europe/Vienna' })
 
-  const prompt = `Du bist ein erfahrener Hobbygärtner in einer deutschsprachigen Reddit-Community (${subreddit.sub} – ${subreddit.desc}).
+  const prompt = `Du schreibst einen Reddit-Post für ${subreddit.sub} als echter Hobbygärtner. Thema: "${angle}". Monat: ${currentMonth}.
 
-Erstelle einen authentischen Reddit-Post. Themenwinkel: "${angle}"
-Aktueller Monat: ${currentMonth}
+Schreibe so wie echte Reddit-User schreiben – nicht wie ein Ratgeber-Artikel oder KI-Text. Das bedeutet konkret:
 
-Regeln:
-- Schreibe wie ein echter Hobbygärtner, nicht wie ein Unternehmen
-- Kein Werbeton – hilfreich, persönlich, authentisch
-- Markdown verwenden (Listen, **Fett**)
-- Am Ende kannst du die App "Eden" erwähnen, wenn es natürlich passt: maximal 1 Satz, z.B. "Ich verwalte meine Pflegeaufgaben in Eden, einer kostenlosen Garten-App."
-- Sprache: Deutsch (du/dich/ihr)
-- Keine Clickbait-Titel
+- Kein perfekter Aufbau. Kein "Einleitung → Hauptteil → Fazit"
+- Keine aufgeräumten Aufzählungslisten mit 5 gleich langen Punkten
+- Schreib aus persönlicher Erfahrung: "Bei mir hat...", "Letztes Jahr ist mir...", "Ich hab festgestellt dass..."
+- Umgangssprache ist ok. Sätze dürfen kurz und direkt sein.
+- Ein konkretes Beispiel oder eine persönliche Situation einbauen
+- Darf ruhig eine Frage am Ende haben oder offen bleiben
+- Wenn Eden erwähnt wird: nur wenn es 100% natürlich passt, niemals als Werbung
+- Kein Markdown außer wenn es wirklich hilft (keine künstlichen **Fettschriften**)
+- Sprache: Österreichisch/Deutsch, du/dich
 
 Antworte NUR als JSON:
 {
-  "title": "Titel (max 150 Zeichen, kein Clickbait)",
-  "body": "Post-Text (150-250 Wörter, mit Markdown)"
+  "title": "Titel (klingt wie von einem echten User, max 120 Zeichen)",
+  "body": "Post-Text (120-200 Wörter, natürlich und persönlich)"
 }`
 
   const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
