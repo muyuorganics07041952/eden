@@ -17,12 +17,12 @@ export function FeedbackFab() {
   return (
     <>
       <Button
-        size="icon"
-        className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:right-6"
+        className="fixed bottom-20 right-4 z-40 h-11 rounded-full shadow-lg px-4 gap-2 sm:bottom-6 sm:right-6 touch-manipulation"
         onClick={handleOpen}
         aria-label="Feedback geben"
       >
-        <MessageSquarePlus className="h-5 w-5" />
+        <MessageSquarePlus className="h-4 w-4 shrink-0" />
+        <span className="text-sm font-medium">Feedback</span>
       </Button>
 
       <FeedbackSheet open={open} onOpenChange={setOpen} pageUrl={pageUrl} />
