@@ -14,22 +14,11 @@ export default async function SettingsPage() {
 
   if (!user) redirect('/login')
 
-  const [{ data: subscription }, { data: userSettings }] = await Promise.all([
-    supabase
-      .from('push_subscriptions')
-      .select('reminder_hour')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from('user_settings')
-      .select('city_name, latitude, longitude, display_name')
-      .eq('user_id', user.id)
-      .maybeSingle(),
-  ])
-
-  const initialReminderHour = subscription?.reminder_hour ?? 8
+  const { data: userSettings } = await supabase
+    .from('user_settings')
+    .select('city_name, latitude, longitude, display_name')
+    .eq('user_id', user.id)
+    .maybeSingle()
 
   return (
     <div className="space-y-6">
@@ -45,7 +34,7 @@ export default async function SettingsPage() {
 
       <ProfileSettingsCard initialDisplayName={userSettings?.display_name ?? null} />
 
-      <NotificationSettingsCard initialReminderHour={initialReminderHour} />
+      <NotificationSettingsCard />
 
       <LocationSettingsCard
         initialCityName={userSettings?.city_name ?? null}

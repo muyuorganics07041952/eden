@@ -6,30 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 
-interface NotificationSettingsCardProps {
-  /** Initial reminder hour from the database, if any */
-  initialReminderHour?: number
-}
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
-  value: i.toString(),
-  label: `${i.toString().padStart(2, "0")}:00 Uhr`,
-}))
-
-export function NotificationSettingsCard({
-  initialReminderHour = 8,
-}: NotificationSettingsCardProps) {
+export function NotificationSettingsCard() {
   const {
     permission,
     isSubscribed,
@@ -37,12 +18,9 @@ export function NotificationSettingsCard({
     error,
     subscribe,
     unsubscribe,
-    updateReminderHour,
     isSupported,
   } = usePushNotifications()
 
-  const [reminderHour, setReminderHour] = useState(initialReminderHour)
-  const [hourSaved, setHourSaved] = useState(false)
   const [testStatus, setTestStatus] = useState<"idle" | "sending" | "ok" | "error">("idle")
   const [testError, setTestError] = useState<string | null>(null)
   const [isStandalone, setIsStandalone] = useState(true)
@@ -59,7 +37,7 @@ export function NotificationSettingsCard({
 
   async function handleToggle(checked: boolean) {
     if (checked) {
-      await subscribe(reminderHour)
+      await subscribe(8)
     } else {
       await unsubscribe()
     }
@@ -81,17 +59,6 @@ export function NotificationSettingsCard({
     } catch {
       setTestStatus("error")
       setTestError("Netzwerkfehler.")
-    }
-  }
-
-  async function handleHourChange(value: string) {
-    const hour = parseInt(value, 10)
-    setReminderHour(hour)
-    setHourSaved(false)
-    const success = await updateReminderHour(hour)
-    if (success) {
-      setHourSaved(true)
-      setTimeout(() => setHourSaved(false), 2000)
     }
   }
 
@@ -193,42 +160,6 @@ export function NotificationSettingsCard({
           </div>
         </div>
 
-        {/* Reminder time */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label htmlFor="reminder-hour" className="text-sm font-medium">
-              Erinnerungszeit
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Wann möchtest du erinnert werden?
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {hourSaved && (
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-            )}
-            <Select
-              value={reminderHour.toString()}
-              onValueChange={handleHourChange}
-              disabled={!isSubscribed || isLoading}
-            >
-              <SelectTrigger
-                id="reminder-hour"
-                className="w-[140px]"
-                aria-label="Erinnerungszeit auswählen"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {HOUR_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
         {/* Test push button — only shown when subscribed */}
         {isSubscribed && (
           <div className="flex flex-col gap-2">
