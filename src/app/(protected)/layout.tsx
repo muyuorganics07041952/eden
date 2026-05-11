@@ -23,7 +23,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   return (
     <PwaInstallProvider>
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
+      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-foreground">
             <Leaf className="h-5 w-5 text-primary" />
@@ -52,7 +52,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         </div>
       </header>
       {/* pb-20 on mobile to avoid content being hidden behind the bottom nav */}
-      <main className="max-w-5xl mx-auto px-4 py-8 pb-24 sm:pb-8">
+      <main className="max-w-5xl mx-auto px-4 py-8 pb-28 sm:pb-8">
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
