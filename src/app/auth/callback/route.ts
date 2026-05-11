@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
     // Notify on email confirmation (not password recovery)
     if (type !== 'recovery' && data.user?.email) {
-      sendTelegramMessage(newUserMessage(data.user.email))
+      await sendTelegramMessage(newUserMessage(data.user.email))
     }
   }
 
