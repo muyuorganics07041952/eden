@@ -38,6 +38,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { FREQUENCY_LABELS, GARDEN_FREQUENCY_LABELS } from "@/lib/types/care"
 import type { TodayCareTask, CareFrequency, GardenTask, GardenTaskFrequency, CareTask } from "@/lib/types/care"
@@ -98,6 +105,9 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
 
   const [deletingGardenTask, setDeletingGardenTask] = useState<GardenTask | null>(null)
   const [isDeletingGarden, setIsDeletingGarden] = useState(false)
+
+  const [viewingGardenTask, setViewingGardenTask] = useState<GardenTask | null>(null)
+  const [viewingCareTask, setViewingCareTask] = useState<TodayCareTask | null>(null)
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
@@ -260,6 +270,11 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
   }
 
   function handleGardenTaskClick(task: GardenTask) {
+    setViewingGardenTask(task)
+  }
+
+  function handleGardenTaskEdit(task: GardenTask) {
+    setViewingGardenTask(null)
     setEditingGardenTask(task)
     setGardenSheetOpen(true)
   }
@@ -505,7 +520,7 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onClick={() => handleGardenTaskClick(task)}>Bearbeiten</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleGardenTaskEdit(task)}>Bearbeiten</DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() => setDeletingGardenTask(task)}
@@ -541,6 +556,7 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
                           completingIds={completingIds}
                           onPlantClick={() => router.push(`/plants/${group.plantId}`)}
                           onCompleteClick={handleCompleteClick}
+                          onCardClick={setViewingCareTask}
                           onEditClick={handleEditCareTask}
                           onDeleteClick={setDeletingCareTask}
                         />
@@ -561,6 +577,7 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
                           completingIds={completingIds}
                           onPlantClick={() => router.push(`/plants/${group.plantId}`)}
                           onCompleteClick={handleCompleteClick}
+                          onCardClick={setViewingCareTask}
                           onEditClick={handleEditCareTask}
                           onDeleteClick={setDeletingCareTask}
                         />
@@ -663,6 +680,114 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Garden task detail (read-only) */}
+      <Sheet open={!!viewingGardenTask} onOpenChange={(open) => { if (!open) setViewingGardenTask(null) }}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85dvh] overflow-y-auto">
+          {viewingGardenTask && (
+            <>
+              <SheetHeader className="pb-2">
+                <SheetTitle className="text-left">{viewingGardenTask.name}</SheetTitle>
+              </SheetHeader>
+              <div className="space-y-4 mt-2">
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const s = getDueStatus(viewingGardenTask.next_due_date)
+                    if (s === "overdue") return (
+                      <Badge className="bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Überfällig seit {formatDate(viewingGardenTask.next_due_date)}
+                      </Badge>
+                    )
+                    if (s === "today") return <Badge className="bg-primary/10 text-primary border-primary/20">Heute fällig</Badge>
+                    return <Badge variant="secondary">Fällig: {formatDate(viewingGardenTask.next_due_date)}</Badge>
+                  })()}
+                  {viewingGardenTask.frequency === "once"
+                    ? <Badge variant="secondary">Einmalig</Badge>
+                    : <Badge variant="secondary">{GARDEN_FREQUENCY_LABELS[viewingGardenTask.frequency as GardenTaskFrequency]}</Badge>
+                  }
+                  {viewingGardenTask.active_month_start != null && viewingGardenTask.active_month_end != null && (
+                    <Badge variant="secondary">{getSeasonBadgeLabel(viewingGardenTask.active_month_start, viewingGardenTask.active_month_end)}</Badge>
+                  )}
+                </div>
+                {viewingGardenTask.notes && (
+                  <>
+                    <Separator />
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{viewingGardenTask.notes}</p>
+                  </>
+                )}
+                <Separator />
+                <div className="flex gap-2 pt-1 pb-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { handleGardenCompleteClick(viewingGardenTask); setViewingGardenTask(null) }}
+                  >
+                    <Check className="h-4 w-4" />
+                    Erledigt
+                  </Button>
+                  <Button className="flex-1" onClick={() => handleGardenTaskEdit(viewingGardenTask)}>
+                    Bearbeiten
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Care task detail (read-only) */}
+      <Sheet open={!!viewingCareTask} onOpenChange={(open) => { if (!open) setViewingCareTask(null) }}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85dvh] overflow-y-auto">
+          {viewingCareTask && (
+            <>
+              <SheetHeader className="pb-2">
+                <SheetTitle className="text-left">{viewingCareTask.name}</SheetTitle>
+                <p className="text-sm text-muted-foreground text-left">{viewingCareTask.plant_name}</p>
+              </SheetHeader>
+              <div className="space-y-4 mt-2">
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const s = getDueStatus(viewingCareTask.next_due_date)
+                    if (s === "overdue") return (
+                      <Badge className="bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Überfällig seit {formatDate(viewingCareTask.next_due_date)}
+                      </Badge>
+                    )
+                    if (s === "today") return <Badge className="bg-primary/10 text-primary border-primary/20">Heute fällig</Badge>
+                    return <Badge variant="secondary">Fällig: {formatDate(viewingCareTask.next_due_date)}</Badge>
+                  })()}
+                  <Badge variant="secondary">{FREQUENCY_LABELS[viewingCareTask.frequency as CareFrequency]}</Badge>
+                  {viewingCareTask.active_month_start != null && viewingCareTask.active_month_end != null && (
+                    <Badge variant="secondary">{getSeasonBadgeLabel(viewingCareTask.active_month_start, viewingCareTask.active_month_end)}</Badge>
+                  )}
+                </div>
+                {viewingCareTask.notes && (
+                  <>
+                    <Separator />
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{viewingCareTask.notes}</p>
+                  </>
+                )}
+                <Separator />
+                <div className="flex gap-2 pt-1 pb-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { handleCompleteClick(viewingCareTask); setViewingCareTask(null) }}
+                  >
+                    <Check className="h-4 w-4" />
+                    Erledigt
+                  </Button>
+                  <Button className="flex-1" onClick={() => { setViewingCareTask(null); handleEditCareTask(viewingCareTask) }}>
+                    Bearbeiten
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
       <GardenTaskSheet
         open={gardenSheetOpen}
         onOpenChange={(open) => { setGardenSheetOpen(open); if (!open) setEditingGardenTask(null) }}
@@ -704,12 +829,13 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
 }
 
 function PlantGroup({
-  group, completingIds, onPlantClick, onCompleteClick, onEditClick, onDeleteClick,
+  group, completingIds, onPlantClick, onCompleteClick, onCardClick, onEditClick, onDeleteClick,
 }: {
   group: { plantId: string; plantName: string; tasks: TodayCareTask[] }
   completingIds: Set<string>
   onPlantClick: () => void
   onCompleteClick: (task: TodayCareTask) => void
+  onCardClick: (task: TodayCareTask) => void
   onEditClick: (task: TodayCareTask) => void
   onDeleteClick: (task: TodayCareTask) => void
 }) {
@@ -729,17 +855,19 @@ function PlantGroup({
           return (
             <Card
               key={task.id}
-              className={
+              className={cn(
+                "cursor-pointer transition-colors hover:bg-accent/50",
                 status === "overdue" ? "border-orange-200/70 bg-orange-50/50"
                   : status === "today" ? "border-primary/50 bg-primary/5" : ""
-              }
+              )}
+              onClick={() => onCardClick(task)}
             >
               <CardContent className="flex items-center gap-3 p-4">
                 <Button
                   variant="outline"
                   size="icon"
                   className="h-8 w-8 shrink-0 rounded-full"
-                  onClick={() => onCompleteClick(task)}
+                  onClick={(e) => { e.stopPropagation(); onCompleteClick(task) }}
                   disabled={isCompleting}
                   aria-label={`${task.name} als erledigt markieren`}
                 >
@@ -771,11 +899,11 @@ function PlantGroup({
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Aktionen für ${task.name}`}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Aktionen für ${task.name}`} onClick={(e) => e.stopPropagation()}>
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenuItem onClick={() => onEditClick(task)}>Bearbeiten</DropdownMenuItem>
                     <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteClick(task)}>
                       Löschen
