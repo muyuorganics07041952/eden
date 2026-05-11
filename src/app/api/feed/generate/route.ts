@@ -101,7 +101,8 @@ Der Artikel soll praktische Tipps enthalten, die Hobby-Gärtner sofort umsetzen 
 function getPersonalizedArticlePrompt(
   plantNames: string[],
   upcomingTasks: string[],
-  category: ArticleCategory
+  category: ArticleCategory,
+  month: string
 ): string {
   const plantsStr = plantNames.join(', ')
   const tasksStr = upcomingTasks.length > 0
@@ -112,8 +113,9 @@ function getPersonalizedArticlePrompt(
 
 Der Nutzer hat folgende Pflanzen: ${plantsStr}
 ${tasksStr}
+Aktueller Monat: ${month} (Klimazone: Mitteleuropa / DACH)
 
-Erstelle einen personalisierten Gartenartikel zum Thema "${category}" der sich auf diese Pflanzen bezieht.
+Erstelle einen personalisierten Gartenartikel zum Thema "${category}" der sich auf diese Pflanzen und den aktuellen Monat bezieht.
 
 Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärung) mit folgenden Feldern:
 - "title": string (Artikeltitel, max. 200 Zeichen, einzigartig und spezifisch)
@@ -121,7 +123,7 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärung) mit folgend
 - "content": string (vollständiger Artikeltext, 300-600 Wörter, personalisiert und praktisch)
 - "category": "${category}"
 
-Der Artikel soll direkt auf die genannten Pflanzen eingehen und konkrete Tipps geben.`
+Der Artikel soll direkt auf die genannten Pflanzen eingehen, konkrete saisonale Tipps für ${month} geben und keine Empfehlungen enthalten, die für die falsche Jahreszeit gelten.`
 }
 
 /**
@@ -332,7 +334,7 @@ export async function GET(request: Request) {
 
       for (const category of persCategories) {
         try {
-          const prompt = getPersonalizedArticlePrompt(plantNames, upcomingTaskDescriptions, category)
+          const prompt = getPersonalizedArticlePrompt(plantNames, upcomingTaskDescriptions, category, currentMonth)
           const raw = await callGemini(prompt, apiKey)
 
           const parsed = geminiArticleSchema.safeParse(raw)
