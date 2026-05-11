@@ -121,21 +121,29 @@ Erstelle einen saisonalen Pflegeplan für folgende Pflanze:
 - Aktueller Monat: ${month} (${season})
 - Klimazone: Mitteleuropa (DACH)
 
-Antworte NUR mit einem JSON-Array (kein Markdown, keine Erklärung) mit 4-5 Pflegeaufgaben.
+Antworte NUR mit einem JSON-Array (kein Markdown, keine Erklärung) mit genau 5 Pflegeaufgaben: 4 Standardaufgaben + 1 Geheimtipp.
 
 Jede Aufgabe hat folgende Felder:
-- "name": string (z.B. "Gießen", "Düngen", "Beschneiden", "Umtopfen", "Überwintern", "Schädlingskontrolle")
+- "name": string (bei Standardaufgaben z.B. "Gießen", "Düngen", "Beschneiden"; beim Geheimtipp exakt "Geheimtipp")
 - "frequency": one of ["daily","weekly","biweekly","monthly","three_months","six_months","yearly","custom"]
 - "interval_days": number (nur bei "custom", sonst weglassen oder null)
-- "notes": string (konkrete Pflegeanleitung auf Deutsch, saisonbezogen, max 150 Zeichen)
-- "days_until_first": number (in wie vielen Tagen die erste Aufgabe fällig ist, min 0, basierend auf aktuellem Monat)
+- "notes": string (konkrete Anleitung auf Deutsch, saisonbezogen, max 150 Zeichen)
+- "days_until_first": number (in wie vielen Tagen die erste Aufgabe fällig ist, min 0)
 
 Saisonale Regeln für DACH-Klima:
 - Gießen: im Sommer häufiger (täglich/wöchentlich), im Winter deutlich reduzieren (monatlich oder custom)
 - Düngen: nur in der Wachstumsphase März–September, im Winter pausieren
 - Beschneiden: artgerecht terminieren (z.B. Obstbäume im Winter, Rosen im Frühjahr)
 - Überwintern: bei frostempfindlichen Pflanzen im Herbst/Winter als Aufgabe ergänzen
-- "days_until_first": 0 wenn sofort fällig, sonst realistisch nach Saisonplan setzen`
+- "days_until_first": 0 wenn sofort fällig, sonst realistisch nach Saisonplan setzen
+
+Regeln für den Geheimtipp (WICHTIG):
+- name: immer exakt "Geheimtipp"
+- Kein Standardpflegehinweis (kein "Gießen", "Düngen", "Beschneiden")
+- Ein konkretes Hausmittel oder eine Volksweisheit aus der Gärtner-Tradition, wie Opa es vor 60 Jahren gemacht hat
+- Bezogen auf diese spezifische Pflanze (${safeName})
+- Beispiele für den richtigen Geist: Kaffeesatz gegen Schädlinge, Brennnesseljauche als Kraftdünger, Holzasche zum Stärken, Bananenschalen als Kaliumquelle, Schafwolle als Wasserspeicher, abgestandenes Bier gegen Schnecken, Knoblauchsud gegen Pilze
+- Der Tipp soll überraschend, authentisch und wirklich hilfreich sein – nicht generisch`
 
   try {
     const controller = new AbortController()

@@ -11,6 +11,7 @@ import {
   X,
   CheckCheck,
   Clock,
+  Lightbulb,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -312,18 +313,35 @@ export function CareTaskSection({ plantId, onTaskCompleted }: CareTaskSectionPro
           </p>
 
           <div className="space-y-2">
-            {suggestions.map((suggestion) => {
+            {[...suggestions].sort((a, b) =>
+              a.name === "Geheimtipp" ? 1 : b.name === "Geheimtipp" ? -1 : 0
+            ).map((suggestion) => {
               const isAccepting = acceptingNames.has(suggestion.name)
               const acceptError = acceptErrors.get(suggestion.name)
+              const isSecret = suggestion.name === "Geheimtipp"
               return (
                 <div
                   key={suggestion.name}
-                  className={`flex items-start gap-3 rounded-md border bg-background p-3 ${
-                    acceptError ? "border-destructive/50" : "border-border"
+                  className={`flex items-start gap-3 rounded-md border p-3 ${
+                    acceptError
+                      ? "border-destructive/50 bg-background"
+                      : isSecret
+                      ? "border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700"
+                      : "border-border bg-background"
                   }`}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{suggestion.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      {isSecret && <Lightbulb className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+                      <p className={`font-medium text-sm ${isSecret ? "text-amber-800 dark:text-amber-300" : ""}`}>
+                        {suggestion.name}
+                      </p>
+                      {isSecret && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200">
+                          Omas Tipp
+                        </span>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -332,7 +350,7 @@ export function CareTaskSection({ plantId, onTaskCompleted }: CareTaskSectionPro
                           ` (${suggestion.interval_days} Tage)`}
                       </span>
                       {suggestion.notes && (
-                        <span className="line-clamp-1">{suggestion.notes}</span>
+                        <span className={`${isSecret ? "italic" : ""} line-clamp-2`}>{suggestion.notes}</span>
                       )}
                     </div>
                     {acceptError && (
@@ -346,7 +364,7 @@ export function CareTaskSection({ plantId, onTaskCompleted }: CareTaskSectionPro
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 rounded-full border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                      className={`h-8 w-8 rounded-full ${isSecret ? "border-amber-400 text-amber-700 hover:bg-amber-500 hover:text-white" : "border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"}`}
                       onClick={() => handleAcceptSuggestion(suggestion)}
                       disabled={isAccepting || acceptingAll}
                       aria-label={`${suggestion.name} übernehmen`}
