@@ -69,6 +69,16 @@ export function GardenTaskSheet({
 }: GardenTaskSheetProps) {
   const isEditing = !!task
 
+  // iOS keyboard fix: track visual viewport height so the sheet shrinks when the keyboard opens
+  const [vpHeight, setVpHeight] = useState<number | null>(null)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => setVpHeight(vv.height)
+    vv.addEventListener("resize", update)
+    return () => vv.removeEventListener("resize", update)
+  }, [])
+
   const [name, setName] = useState("")
   const [frequency, setFrequency] = useState<GardenTaskFrequency>("once")
   const [intervalDays, setIntervalDays] = useState<number>(7)
@@ -230,192 +240,197 @@ export function GardenTaskSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="overflow-y-auto">
-          <SheetHeader>
+        <SheetContent
+          className="flex flex-col gap-0 p-0"
+          style={vpHeight != null ? { height: vpHeight, bottom: "auto" } : undefined}
+        >
+          <SheetHeader className="px-6 pt-6 pb-2 shrink-0">
             <SheetTitle>
               {isEditing ? "Gartenaufgabe bearbeiten" : "Neue Gartenaufgabe"}
             </SheetTitle>
           </SheetHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-5 py-4">
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="garden-task-name">Name</Label>
-              <Input
-                id="garden-task-name"
-                placeholder="z.B. Kompost umsetzen, Rasen mähen..."
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  if (nameError) setNameError(null)
-                }}
-                maxLength={200}
-                autoFocus
-                aria-invalid={!!nameError}
-                aria-describedby={nameError ? "garden-task-name-error" : undefined}
-              />
-              {nameError && (
-                <p id="garden-task-name-error" className="text-sm text-destructive" role="alert">
-                  {nameError}
-                </p>
-              )}
-            </div>
-
-            {/* Frequency */}
-            <div className="space-y-2">
-              <Label htmlFor="garden-task-frequency">Häufigkeit</Label>
-              <Select
-                value={frequency}
-                onValueChange={(v) => setFrequency(v as GardenTaskFrequency)}
-              >
-                <SelectTrigger id="garden-task-frequency" aria-label="Häufigkeit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {GARDEN_FREQUENCY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Custom interval */}
-            {frequency === "custom" && (
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-5">
+              {/* Name */}
               <div className="space-y-2">
-                <Label htmlFor="garden-task-interval">Intervall (Tage)</Label>
+                <Label htmlFor="garden-task-name">Name</Label>
                 <Input
-                  id="garden-task-interval"
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={intervalDays}
-                  onChange={(e) => setIntervalDays(Number(e.target.value))}
-                />
-              </div>
-            )}
-
-            {/* Next due date */}
-            <div className="space-y-2">
-              <Label htmlFor="garden-task-due-date">Fälligkeitsdatum</Label>
-              <Input
-                id="garden-task-due-date"
-                type="date"
-                value={nextDueDate}
-                onChange={(e) => {
-                  setNextDueDate(e.target.value)
-                  if (dateError) setDateError(null)
-                }}
-                aria-invalid={!!dateError}
-                aria-describedby={dateError ? "garden-task-date-error" : undefined}
-              />
-              {dateError && (
-                <p id="garden-task-date-error" className="text-sm text-destructive" role="alert">
-                  {dateError}
-                </p>
-              )}
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="garden-task-notes">Notizen (optional)</Label>
-              <Textarea
-                id="garden-task-notes"
-                placeholder="Zusätzliche Hinweise..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                maxLength={500}
-                rows={3}
-              />
-            </div>
-
-            {/* Aktivzeitraum (Seasonal scheduling) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="garden-task-season-toggle">Saisonale Aufgabe</Label>
-                <Switch
-                  id="garden-task-season-toggle"
-                  checked={seasonEnabled}
-                  onCheckedChange={(checked) => {
-                    setSeasonEnabled(checked)
-                    if (!checked) {
-                      setActiveMonthStart(null)
-                      setActiveMonthEnd(null)
-                      setSeasonError(null)
-                    }
+                  id="garden-task-name"
+                  placeholder="z.B. Kompost umsetzen, Rasen mähen..."
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    if (nameError) setNameError(null)
                   }}
-                  aria-label="Saisonale Aufgabe aktivieren"
+                  maxLength={200}
+                  autoFocus
+                  aria-invalid={!!nameError}
+                  aria-describedby={nameError ? "garden-task-name-error" : undefined}
                 />
+                {nameError && (
+                  <p id="garden-task-name-error" className="text-sm text-destructive" role="alert">
+                    {nameError}
+                  </p>
+                )}
               </div>
-              {seasonEnabled && (
+
+              {/* Frequency */}
+              <div className="space-y-2">
+                <Label htmlFor="garden-task-frequency">Häufigkeit</Label>
+                <Select
+                  value={frequency}
+                  onValueChange={(v) => setFrequency(v as GardenTaskFrequency)}
+                >
+                  <SelectTrigger id="garden-task-frequency" aria-label="Häufigkeit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GARDEN_FREQUENCY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Custom interval */}
+              {frequency === "custom" && (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="garden-task-month-start">Aktiv von</Label>
-                      <Select
-                        value={activeMonthStart != null ? String(activeMonthStart) : ""}
-                        onValueChange={(v) => {
-                          setActiveMonthStart(Number(v))
-                          if (seasonError) setSeasonError(null)
-                        }}
-                      >
-                        <SelectTrigger id="garden-task-month-start" aria-label="Aktiv von">
-                          <SelectValue placeholder="Monat" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MONTH_OPTIONS.map((m) => (
-                            <SelectItem key={m.value} value={String(m.value)}>
-                              {m.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="garden-task-month-end">Aktiv bis</Label>
-                      <Select
-                        value={activeMonthEnd != null ? String(activeMonthEnd) : ""}
-                        onValueChange={(v) => {
-                          setActiveMonthEnd(Number(v))
-                          if (seasonError) setSeasonError(null)
-                        }}
-                      >
-                        <SelectTrigger id="garden-task-month-end" aria-label="Aktiv bis">
-                          <SelectValue placeholder="Monat" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MONTH_OPTIONS.map((m) => (
-                            <SelectItem key={m.value} value={String(m.value)}>
-                              {m.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  {activeMonthStart != null && activeMonthEnd != null && activeMonthStart > activeMonthEnd && (
-                    <p className="text-xs text-muted-foreground">
-                      {MONTH_OPTIONS[activeMonthStart - 1].label.slice(0, 3)}–{MONTH_OPTIONS[activeMonthEnd - 1].label.slice(0, 3)} = jahresübergreifende Saison
-                    </p>
-                  )}
-                  {seasonError && (
-                    <p className="text-sm text-destructive" role="alert">
-                      {seasonError}
-                    </p>
-                  )}
+                  <Label htmlFor="garden-task-interval">Intervall (Tage)</Label>
+                  <Input
+                    id="garden-task-interval"
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={intervalDays}
+                    onChange={(e) => setIntervalDays(Number(e.target.value))}
+                  />
                 </div>
               )}
+
+              {/* Next due date */}
+              <div className="space-y-2">
+                <Label htmlFor="garden-task-due-date">Fälligkeitsdatum</Label>
+                <Input
+                  id="garden-task-due-date"
+                  type="date"
+                  value={nextDueDate}
+                  onChange={(e) => {
+                    setNextDueDate(e.target.value)
+                    if (dateError) setDateError(null)
+                  }}
+                  aria-invalid={!!dateError}
+                  aria-describedby={dateError ? "garden-task-date-error" : undefined}
+                />
+                {dateError && (
+                  <p id="garden-task-date-error" className="text-sm text-destructive" role="alert">
+                    {dateError}
+                  </p>
+                )}
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="garden-task-notes">Notizen (optional)</Label>
+                <Textarea
+                  id="garden-task-notes"
+                  placeholder="Zusätzliche Hinweise..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                />
+              </div>
+
+              {/* Aktivzeitraum (Seasonal scheduling) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="garden-task-season-toggle">Saisonale Aufgabe</Label>
+                  <Switch
+                    id="garden-task-season-toggle"
+                    checked={seasonEnabled}
+                    onCheckedChange={(checked) => {
+                      setSeasonEnabled(checked)
+                      if (!checked) {
+                        setActiveMonthStart(null)
+                        setActiveMonthEnd(null)
+                        setSeasonError(null)
+                      }
+                    }}
+                    aria-label="Saisonale Aufgabe aktivieren"
+                  />
+                </div>
+                {seasonEnabled && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="garden-task-month-start">Aktiv von</Label>
+                        <Select
+                          value={activeMonthStart != null ? String(activeMonthStart) : ""}
+                          onValueChange={(v) => {
+                            setActiveMonthStart(Number(v))
+                            if (seasonError) setSeasonError(null)
+                          }}
+                        >
+                          <SelectTrigger id="garden-task-month-start" aria-label="Aktiv von">
+                            <SelectValue placeholder="Monat" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MONTH_OPTIONS.map((m) => (
+                              <SelectItem key={m.value} value={String(m.value)}>
+                                {m.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="garden-task-month-end">Aktiv bis</Label>
+                        <Select
+                          value={activeMonthEnd != null ? String(activeMonthEnd) : ""}
+                          onValueChange={(v) => {
+                            setActiveMonthEnd(Number(v))
+                            if (seasonError) setSeasonError(null)
+                          }}
+                        >
+                          <SelectTrigger id="garden-task-month-end" aria-label="Aktiv bis">
+                            <SelectValue placeholder="Monat" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MONTH_OPTIONS.map((m) => (
+                              <SelectItem key={m.value} value={String(m.value)}>
+                                {m.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {activeMonthStart != null && activeMonthEnd != null && activeMonthStart > activeMonthEnd && (
+                      <p className="text-xs text-muted-foreground">
+                        {MONTH_OPTIONS[activeMonthStart - 1].label.slice(0, 3)}–{MONTH_OPTIONS[activeMonthEnd - 1].label.slice(0, 3)} = jahresübergreifende Saison
+                      </p>
+                    )}
+                    {seasonError && (
+                      <p className="text-sm text-destructive" role="alert">
+                        {seasonError}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Error */}
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
             </div>
 
-            {/* Error */}
-            {error && (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            )}
-
-            <SheetFooter className="flex-col gap-2 sm:flex-row">
+            <SheetFooter className="px-6 py-4 border-t shrink-0 flex-col gap-2 sm:flex-row">
               {isEditing && (
                 <Button
                   type="button"
