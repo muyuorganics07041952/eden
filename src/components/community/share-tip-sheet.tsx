@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { ImagePlus, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -23,6 +23,7 @@ interface ShareTipSheetProps {
   plantName: string
   plantSpecies: string | null
   onSuccess: (tip: CommunityTip) => void
+  initialText?: string
 }
 
 export function ShareTipSheet({
@@ -31,8 +32,13 @@ export function ShareTipSheet({
   plantName,
   plantSpecies,
   onSuccess,
+  initialText,
 }: ShareTipSheetProps) {
-  const [text, setText] = useState("")
+  const [text, setText] = useState(initialText ?? "")
+
+  useEffect(() => {
+    if (open) setText(initialText ?? "")
+  }, [open, initialText])
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -72,7 +78,7 @@ export function ShareTipSheet({
 
   function handleClose(nextOpen: boolean) {
     if (!nextOpen) {
-      setText("")
+      setText(initialText ?? "")
       setPhoto(null)
       setPhotoPreview(null)
       setFileError(null)

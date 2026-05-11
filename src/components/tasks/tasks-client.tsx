@@ -17,6 +17,7 @@ import {
   MoreVertical,
   Search,
   LayoutList,
+  Share2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +53,7 @@ import { GardenTaskSheet } from "@/components/tasks/garden-task-sheet"
 import { TaskTypePicker } from "@/components/tasks/task-type-picker"
 import { CareTaskSheet } from "@/components/care/care-task-sheet"
 import { TaskFilterBar, type StatusFilter } from "@/components/tasks/task-filter-bar"
+import { ShareTipSheet } from "@/components/community/share-tip-sheet"
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
 
@@ -108,6 +110,9 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
 
   const [viewingGardenTask, setViewingGardenTask] = useState<GardenTask | null>(null)
   const [viewingCareTask, setViewingCareTask] = useState<TodayCareTask | null>(null)
+
+  const [shareTipOpen, setShareTipOpen] = useState(false)
+  const [shareTipPlant, setShareTipPlant] = useState<{ name: string; species: null; initialText: string } | null>(null)
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
@@ -719,6 +724,20 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
                 <div className="flex gap-2 pt-1 pb-4">
                   <Button
                     variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label="Als Tipp teilen"
+                    onClick={() => {
+                      const text = [viewingGardenTask.name, viewingGardenTask.notes].filter(Boolean).join(' – ')
+                      setShareTipPlant({ name: "Garten", species: null, initialText: text })
+                      setShareTipOpen(true)
+                      setViewingGardenTask(null)
+                    }}
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
                     className="flex-1"
                     onClick={() => { handleGardenCompleteClick(viewingGardenTask); setViewingGardenTask(null) }}
                   >
@@ -772,6 +791,20 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
                 <div className="flex gap-2 pt-1 pb-4">
                   <Button
                     variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label="Als Tipp teilen"
+                    onClick={() => {
+                      const text = [viewingCareTask.name, viewingCareTask.notes].filter(Boolean).join(' – ')
+                      setShareTipPlant({ name: viewingCareTask.plant_name, species: null, initialText: text })
+                      setShareTipOpen(true)
+                      setViewingCareTask(null)
+                    }}
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
                     className="flex-1"
                     onClick={() => { handleCompleteClick(viewingCareTask); setViewingCareTask(null) }}
                   >
@@ -801,6 +834,17 @@ export function TasksClient({ initialCareTasks, initialGardenTasks }: TasksClien
         onSelectGeneral={handlePickerSelectGeneral}
         onSelectPlant={handlePickerSelectPlant}
       />
+
+      {shareTipPlant && (
+        <ShareTipSheet
+          open={shareTipOpen}
+          onOpenChange={(open) => { setShareTipOpen(open); if (!open) setShareTipPlant(null) }}
+          plantName={shareTipPlant.name}
+          plantSpecies={shareTipPlant.species}
+          initialText={shareTipPlant.initialText}
+          onSuccess={() => setShareTipOpen(false)}
+        />
+      )}
 
       <CareTaskSheet
         open={careSheetOpen}
