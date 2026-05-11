@@ -39,6 +39,21 @@ export function ShareTipSheet({
   useEffect(() => {
     if (open) setText(initialText ?? "")
   }, [open, initialText])
+
+  const [kbOffset, setKbOffset] = useState(0)
+  const [vpHeight, setVpHeight] = useState<number | null>(null)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      setKbOffset(offset)
+      setVpHeight(vv.height)
+    }
+    vv.addEventListener("resize", update)
+    vv.addEventListener("scroll", update)
+    return () => { vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update) }
+  }, [])
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -121,7 +136,14 @@ export function ShareTipSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+      <SheetContent
+        side="bottom"
+        className="overflow-y-auto"
+        style={{
+          bottom: kbOffset > 0 ? `${kbOffset}px` : undefined,
+          maxHeight: vpHeight ? `${Math.round(vpHeight * 0.92)}px` : "85vh",
+        }}
+      >
         <SheetHeader>
           <SheetTitle>Tipp teilen</SheetTitle>
           <SheetDescription>

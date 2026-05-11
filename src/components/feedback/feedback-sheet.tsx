@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2, Bug, Lightbulb, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -41,6 +41,21 @@ export function FeedbackSheet({ open, onOpenChange, pageUrl }: FeedbackSheetProp
   const [text, setText] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [kbOffset, setKbOffset] = useState(0)
+  const [vpHeight, setVpHeight] = useState<number | null>(null)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      setKbOffset(offset)
+      setVpHeight(vv.height)
+    }
+    vv.addEventListener("resize", update)
+    vv.addEventListener("scroll", update)
+    return () => { vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update) }
+  }, [])
 
   const trimmedText = text.trim()
   const isValid = trimmedText.length >= MIN_CHARS && trimmedText.length <= MAX_CHARS
@@ -94,7 +109,14 @@ export function FeedbackSheet({ open, onOpenChange, pageUrl }: FeedbackSheetProp
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+      <SheetContent
+        side="bottom"
+        className="overflow-y-auto"
+        style={{
+          bottom: kbOffset > 0 ? `${kbOffset}px` : undefined,
+          maxHeight: vpHeight ? `${Math.round(vpHeight * 0.92)}px` : "85vh",
+        }}
+      >
         <SheetHeader>
           <SheetTitle>Feedback geben</SheetTitle>
           <SheetDescription>
